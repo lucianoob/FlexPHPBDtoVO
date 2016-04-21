@@ -1,0 +1,280 @@
+[12-Sep-2012 15:22:20] PHP Fatal error:  Uncaught exception 'Exception' with message 'service called failed. server response: 
+ <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<meta name="generator" content="Phusion Passenger">
+	<title>Ruby on Rails application could not be started</title>
+	<style type="text/css">
+		body {
+	font-family: Verdana, 'Bitstream Vera Sans', Arial, Sans-Serif;
+	font-size: 10pt;
+	background: white;
+	color: #222222;
+	margin: 0;
+	padding-top: 3em;
+	padding-bottom: 3em;
+	padding-left: 4.5em;
+	padding-right: 4.5em;
+}
+
+h1 {
+	font-size: 17pt;
+	font-weight: medium;
+	color: #533e72;
+	border-bottom: 1px solid #533e72;
+}
+
+h1.title {
+	margin-top: 0;
+}
+
+h1.error_title {
+	color: red;
+	border-bottom: 1px solid red;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+dt {
+	font-weight: bold;
+	color: #280050;
+}
+
+dd {
+	margin-top: 0.5em;
+	margin-bottom: 1em;
+}
+
+.commands {
+	border: 1px solid  in /home2/bltdesig/rails_apps/md/public/despontos.com/web/php/browser/ServiceCaller.php on line 56
+[12-Sep-2012 15:22:24] PHP Fatal error:  Uncaught exception 'Exception' with message 'service called failed. server response: 
+ <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<meta name="generator" content="Phusion Passenger">
+	<title>Ruby on Rails application could not be started</title>
+	<style type="text/css">
+		body {
+	font-family: Verdana, 'Bitstream Vera Sans', Arial, Sans-Serif;
+	font-size: 10pt;
+	background: white;
+	color: #222222;
+	margin: 0;
+	padding-top: 3em;
+	padding-bottom: 3em;
+	padding-left: 4.5em;
+	padding-right: 4.5em;
+}
+
+h1 {
+	font-size: 17pt;
+	font-weight: medium;
+	color: #533e72;
+	border-bottom: 1px solid #533e72;
+}
+
+h1.title {
+	margin-top: 0;
+}
+
+h1.error_title {
+	color: red;
+	border-bottom: 1px solid red;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+dt {
+	font-weight: bold;
+	color: #280050;
+}
+
+dd {
+	margin-top: 0.5em;
+	margin-bottom: 1em;
+}
+
+.commands {
+	border: 1px solid  in /home2/bltdesig/rails_apps/md/public/despontos.com/web/php/browser/ServiceCaller.php on line 56
+[12-Sep-2012 15:22:26] PHP Fatal error:  Uncaught exception 'Exception' with message 'service called failed. server response: 
+ <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<meta name="generator" content="Phusion Passenger">
+	<title>Ruby on Rails application could not be started</title>
+	<style type="text/css">
+		body {
+	font-family: Verdana, 'Bitstream Vera Sans', Arial, Sans-Serif;
+	font-size: 10pt;
+	background: white;
+	color: #222222;
+	margin: 0;
+	padding-top: 3em;
+	padding-bottom: 3em;
+	padding-left: 4.5em;
+	padding-right: 4.5em;
+}
+
+h1 {
+	font-size: 17pt;
+	font-weight: medium;
+	color: #533e72;
+	border-bottom: 1px solid #533e72;
+}
+
+h1.title {
+	margin-top: 0;
+}
+
+h1.error_title {
+	color: red;
+	border-bottom: 1px solid red;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+dt {
+	font-weight: bold;
+	color: #280050;
+}
+
+dd {
+	margin-top: 0.5em;
+	margin-bottom: 1em;
+}
+
+.commands {
+	border: 1px solid  in /home2/bltdesig/rails_apps/md/public/despontos.com/web/php/browser/ServiceCaller.php on line 56
+[12-Sep-2012 15:22:32] PHP Fatal error:  Uncaught exception 'Exception' with message 'service called failed. server response: 
+ <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<meta name="generator" content="Phusion Passenger">
+	<title>Ruby on Rails application could not be started</title>
+	<style type="text/css">
+		body {
+	font-family: Verdana, 'Bitstream Vera Sans', Arial, Sans-Serif;
+	font-size: 10pt;
+	background: white;
+	color: #222222;
+	margin: 0;
+	padding-top: 3em;
+	padding-bottom: 3em;
+	padding-left: 4.5em;
+	padding-right: 4.5em;
+}
+
+h1 {
+	font-size: 17pt;
+	font-weight: medium;
+	color: #533e72;
+	border-bottom: 1px solid #533e72;
+}
+
+h1.title {
+	margin-top: 0;
+}
+
+h1.error_title {
+	color: red;
+	border-bottom: 1px solid red;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+dt {
+	font-weight: bold;
+	color: #280050;
+}
+
+dd {
+	margin-top: 0.5em;
+	margin-bottom: 1em;
+}
+
+.commands {
+	border: 1px solid  in /home2/bltdesig/rails_apps/md/public/despontos.com/web/php/browser/ServiceCaller.php on line 56
+[12-Sep-2012 15:22:42] PHP Fatal error:  Uncaught exception 'Exception' with message 'service called failed. server response: 
+ <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<meta name="generator" content="Phusion Passenger">
+	<title>Ruby on Rails application could not be started</title>
+	<style type="text/css">
+		body {
+	font-family: Verdana, 'Bitstream Vera Sans', Arial, Sans-Serif;
+	font-size: 10pt;
+	background: white;
+	color: #222222;
+	margin: 0;
+	padding-top: 3em;
+	padding-bottom: 3em;
+	padding-left: 4.5em;
+	padding-right: 4.5em;
+}
+
+h1 {
+	font-size: 17pt;
+	font-weight: medium;
+	color: #533e72;
+	border-bottom: 1px solid #533e72;
+}
+
+h1.title {
+	margin-top: 0;
+}
+
+h1.error_title {
+	color: red;
+	border-bottom: 1px solid red;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+dt {
+	font-weight: bold;
+	color: #280050;
+}
+
+dd {
+	margin-top: 0.5em;
+	margin-bottom: 1em;
+}
+
+.commands {
+	border: 1px solid  in /home2/bltdesig/rails_apps/md/public/despontos.com/web/php/browser/ServiceCaller.php on line 56

@@ -1,0 +1,2249 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009"
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   width="100%" height="100%" backgroundColor="#FFFFFF" color="#000000"
+			   creationComplete="application_creationCompleteHandler(event)" fontSize="14"
+			   fontWeight="bold" pageTitle="FlexPHPDBtoVO" xmlns:components="components.*">
+	<fx:Style source="styles/estilos.css"/>
+	<fx:Script>
+		<![CDATA[
+        import components.ViewFile;
+
+        import mx.collections.ArrayCollection;
+        import mx.controls.Alert;
+        import mx.events.CloseEvent;
+        import mx.events.FlexEvent;
+        import mx.events.IndexChangedEvent;
+        import mx.managers.BrowserManager;
+        import mx.managers.PopUpManager;
+        import mx.rpc.events.FaultEvent;
+        import mx.rpc.events.ResultEvent;
+
+        private var cookie:SharedObject = SharedObject.getLocal('Dados');
+        [Bindable]
+        private var bancosDados:ArrayCollection;
+        [Bindable]
+        private var tabelas:ArrayCollection;
+        [Bindable]
+        private var campos:ArrayCollection;
+        [Bindable]
+        private var confXML:XML = new XML;
+        [Bindable]
+        public var comentarioTabela:String = "";
+        [Bindable]
+        public var titulo:String = "FlexPHPDBtoVO";
+        [Bindable]
+        public var versao:String = "v10.38";
+        [Bindable]
+        public var descricao:String = "Gerador de scripts para sistemas em Apache Flex da iAutomate.";
+        [Bindable]
+        public var pathFile:String;
+
+        private var myFilter:FileFilter = new FileFilter("XML", "*.xml");
+        private var fr:FileReference = new FileReference();
+        private var fo:FileReference = new FileReference();
+        private var fs:FileReference = new FileReference();
+
+        private var typeSaveConfime:String = "";
+
+        [Bindable]
+        private var isCheckFileOnly:Boolean = false;
+        [Bindable]
+        private var isEdit:Boolean = false;
+
+        protected function application_creationCompleteHandler(event:FlexEvent):void {
+            BrowserManager.getInstance().setTitle(titulo + " " + versao + " - " + descricao);
+
+            if (cookie.data.hasOwnProperty('conexao') && cookie.data.hasOwnProperty('pacote') && cookie.data.hasOwnProperty('alias') && cookie.data.hasOwnProperty('usuario') && cookie.data.hasOwnProperty('senha') && cookie.data.hasOwnProperty('servidor') && cookie.data.hasOwnProperty('porta')) {
+                textInputConexao.text = cookie.data.conexao;
+                textInputPacote.text = cookie.data.pacote;
+                textInputAlias.text = cookie.data.alias;
+                textInputUsuario.text = cookie.data.usuario;
+                textInputSenha.text = cookie.data.senha;
+                textInputServidor.text = cookie.data.servidor;
+                textInputPorta.text = cookie.data.porta;
+                textInputFlexName.text = cookie.data.flex_name;
+                textInputFlexPath.text = cookie.data.flex_path;
+                textInputVoAsPath.text = cookie.data.voas_path;
+                textInputTipsPath.text = cookie.data.tips_path;
+                textInputAboutPath.text = cookie.data.about_path;
+                textInputVoPhpPath.text = cookie.data.vophp_path;
+                textInputCrudPath.text = cookie.data.crud_path;
+                textInputViewPath.text = cookie.data.view_path;
+                textInputSufixoClasses.text = cookie.data.sufixo_classes;
+                checkBoxSufixoFuncoes.selected = cookie.data.sufixo_funcoes;
+                checkBoxSalvar.selected = true;
+            }
+        }
+
+        protected function remote_faultHandler(event:FaultEvent):void {
+            Alert.show("Code(" + event.fault.errorID.toString(10) + "): " + event.fault.faultString + "\nDetalhes:" + event.fault.faultDetail, "ERRO(" + event.fault.faultCode + ")");
+        }
+
+        protected function buttonTestar_clickHandler(event:MouseEvent):void {
+            remote.openConexao(textInputUsuario.text, textInputSenha.text, textInputServidor.text, textInputPorta.text);
+        }
+
+        protected function openConexao_resultHandler(event:ResultEvent):void {
+            Alert.show("Conexão realizada com sucesso !!!", "OK");
+        }
+
+        protected function buttonConectar_clickHandler(event:MouseEvent):void {
+            if (checkBoxSalvar.selected) {
+                cookie.data.conexao = textInputConexao.text;
+                cookie.data.pacote = textInputPacote.text;
+                cookie.data.alias = textInputAlias.text;
+                cookie.data.usuario = textInputUsuario.text;
+                cookie.data.senha = textInputSenha.text;
+                cookie.data.servidor = textInputServidor.text;
+                cookie.data.porta = textInputPorta.text;
+                cookie.data.flex_name = textInputFlexName.text;
+                cookie.data.flex_path = textInputFlexPath.text;
+                cookie.data.voas_path = textInputVoAsPath.text;
+                cookie.data.tips_path = textInputTipsPath.text;
+                cookie.data.about_path = textInputAboutPath.text;
+                cookie.data.vophp_path = textInputVoPhpPath.text;
+                cookie.data.crud_path = textInputCrudPath.text;
+                cookie.data.view_path = textInputViewPath.text;
+                cookie.data.sufixo_classes = textInputSufixoClasses.text;
+                cookie.data.sufixo_funcoes = checkBoxSufixoFuncoes.selected;
+                //cookie.flush();
+            }
+            else {
+                cookie.clear();
+            }
+            remote.listarBancoDados(textInputUsuario.text, textInputSenha.text, textInputServidor.text, textInputPorta.text);
+        }
+
+        protected function listarBancoDados_resultHandler(event:ResultEvent):void {
+            hgroupConf.enabled = false;
+            textInputPacote.enabled = false;
+            textInputConexao.enabled = false;
+            textInputAlias.enabled = false;
+            textInputServidor.enabled = false;
+            textInputPorta.enabled = false;
+            textInputUsuario.enabled = false;
+            textInputSenha.enabled = false;
+            checkBoxSalvar.enabled = false;
+            buttonTestar.enabled = false;
+            buttonConectar.enabled = false;
+            buttonDesconectar.enabled = true;
+            buttonExportar.enabled = true;
+            buttonImportar.enabled = false;
+            itemBancosDados.visible = true;
+            //bancosDados = new ArrayCollection(event.result as Array);
+            bancosDados = new ArrayCollection();
+            bancosDados.addItem({ Database:"iautomat_apps" });
+            if (confXML.toString().length != 0)
+                dropDownListBancos.selectedIndex = getDropDownListIndex(dropDownListBancos, "Database", confXML.conexao[0].database);
+            if (dropDownListBancos.selectedIndex == -1)
+                dropDownListBancos.selectedIndex = getDropDownListIndex(dropDownListBancos, "Database", cookie.data.banco_dados);
+            if (dropDownListBancos.selectedIndex != -1)
+                buttonListarTabelas_clickHandler();
+        }
+
+        protected function buttonDesconectar_clickHandler(event:MouseEvent):void {
+            navegacao.selectedIndex = 0;
+            hgroupConf.enabled = true;
+            textInputConexao.enabled = true;
+            textInputPacote.enabled = true;
+            textInputAlias.enabled = true;
+            textInputServidor.enabled = true;
+            textInputPorta.enabled = true;
+            textInputUsuario.enabled = true;
+            textInputSenha.enabled = true;
+            checkBoxSalvar.enabled = true;
+            buttonTestar.enabled = true;
+            buttonConectar.enabled = true;
+            buttonDesconectar.enabled = false;
+            buttonImportar.enabled = true;
+            buttonExportar.enabled = false;
+            buttonExportCSV.enabled = false;
+            buttonBarNavegacao.visible = false;
+            itemBancosDados.visible = false;
+            itemTabelas.visible = false;
+            bancosDados = new ArrayCollection();
+            campos = new ArrayCollection();
+            textAreaVoAS.text = "";
+            textAreaVoPHP.text = "";
+            textAreaCRUDPHP.text = "";
+            textAreaMXMLFlex.text = "";
+        }
+
+        private function getDropDownListIndex(list:DropDownList, label:String, text:String):int {
+            var saida:int = -1;
+            for (var i:int; i < list.dataProvider.length; i++) {
+                if (text == list.dataProvider.getItemAt(i)[label])
+                    saida = i;
+            }
+            return saida;
+        }
+
+        protected function buttonListarTabelas_clickHandler():void {
+            if (dropDownListBancos.selectedIndex != -1) {
+                if (checkBoxSalvar.selected) {
+                    cookie.data.banco_dados = dropDownListBancos.selectedItem.Database;
+                    cookie.flush();
+                }
+                remote.listarTabelas(textInputUsuario.text, textInputSenha.text, textInputServidor.text, textInputPorta.text, dropDownListBancos.selectedItem.Database);
+            } else {
+                Alert.show("Selecione um banco de dados !!!", "ERRO");
+            }
+        }
+
+        protected function listarTabelas_resultHandler(event:ResultEvent):void {
+            itemTabelas.visible = true;
+            //tabelas = new ArrayCollection(event.result as Array);
+            tabelas = new ArrayCollection();
+            tabelas.addItem({ Tables_in_iautomat_apps:"erp_clientes" });
+            tabelas.addItem({ Tables_in_iautomat_apps:"erp_fornecedores" });
+        }
+
+        protected function buttonListarCampos_clickHandler():void {
+            if (dropDownListBancos.selectedIndex != -1) {
+                remote.listarCampos(textInputUsuario.text, textInputSenha.text, textInputServidor.text, textInputPorta.text, dropDownListBancos.selectedItem.Database, dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database]);
+                remote.listarComentarioTabela(textInputUsuario.text, textInputSenha.text, textInputServidor.text, textInputPorta.text, dropDownListBancos.selectedItem.Database, dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database]);
+            } else {
+                Alert.show("Selecione uma tabela !!!", "ERRO");
+            }
+        }
+
+        protected function listarCampos_resultHandler(event:ResultEvent):void {
+            buttonExportCSV.enabled = true;
+            navegacao.selectedIndex = 0;
+            campos = new ArrayCollection(event.result as Array);
+            buttonBarNavegacao.visible = true;
+        }
+
+        protected function listarComentarioTabela_resultHandler(event:ResultEvent):void {
+            var obj:Object = event.result as Object;
+            comentarioTabela = obj.Comment;
+        }
+
+        protected function navegacao_changeHandler(event:IndexChangedEvent):void {
+            var i:int;
+            var view:VBox = navegacao.getChildAt(event.newIndex) as VBox;
+            if (view.id == "viewVoAS") {
+                var voAS:String = 'package ' + textInputPacote.text + '\n';
+                voAS += '{\n';
+                voAS += '\t[RemoteClass(alias="' + textInputAlias.text + '.' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '")]\n';
+                voAS += '\n';
+                voAS += '\t[Bindable]\n';
+                voAS += '\tpublic class ' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '\n'
+                voAS += '\t{\n';
+                for (i = 0; i < campos.length; i++) {
+                    voAS += '\t\tpublic var ' + campos[i].Field + ':' + tipoCampo(campos[i].Type) + ';\n';
+                }
+                voAS += '\t}\n';
+                voAS += '}\n';
+                textAreaVoAS.text = voAS;
+                checkFile("vo_as");
+            } else if (view.id == "viewTipsAS") {
+                var tipsAS:String = 'package model.tips\n';
+                tipsAS += '{\n';
+                tipsAS += '\t[RemoteClass(alias="tips.tips_' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '")]\n';
+                tipsAS += '\n';
+                tipsAS += '\t[Bindable]\n';
+                tipsAS += '\tpublic class tips_' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '\n'
+                tipsAS += '\t{\n';
+                for (i = 0; i < campos.length; i++) {
+                    tipsAS += '\t\tpublic var ' + campos[i].Field + ':String="' + campos[i].Comment + '";\n';
+                }
+                tipsAS += '\t}\n';
+                tipsAS += '}\n';
+                textAreaTipsAS.text = tipsAS;
+                checkFile("tips_as");
+            } else if (view.id == "viewAboutAS") {
+                var aboutAS:String = 'package model.about\n';
+                aboutAS += '{\n';
+                aboutAS += '\t[RemoteClass(alias="about.about_' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '")]\n';
+                aboutAS += '\n';
+                aboutAS += '\t[Bindable]\n';
+                aboutAS += '\tpublic class about_' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '\n'
+                aboutAS += '\t{\n';
+                aboutAS += '\t\tpublic var text:String="' + comentarioTabela + '";\n';
+                aboutAS += '\t}\n';
+                aboutAS += '}\n';
+                textAreaAboutAS.text = aboutAS;
+                checkFile("about_as");
+            } else if (view.id == "viewVoPHP") {
+                var voPHP:String = '<?php\n';
+                voPHP += 'class ' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '\n';
+                voPHP += '{\n\n';
+                for (i = 0; i < campos.length; i++) {
+                    voPHP += '\tvar $' + campos[i].Field + ';\n';
+                }
+                voPHP += '\n';
+                voPHP += '\tvar $_explicitType = "' + textInputAlias.text + '.' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '";\n';
+                voPHP += '\n';
+                voPHP += '\tfunction ' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '()\n';
+                voPHP += '\t{\n\n';
+                voPHP += '\t}\n';
+                voPHP += '}\n';
+                voPHP += '?>';
+                textAreaVoPHP.text = voPHP;
+                checkFile("vo_php");
+            } else if (view.id == "viewCRUDPGPHP") {
+                var crudPGPHP:String = '<?php\n';
+                crudPGPHP += "require_once '" + textInputConexao.text + ".php';\n";
+                crudPGPHP += "require_once '" + textInputAlias.text + "/" + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + ".php';\n";
+                crudPGPHP += 'class ' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + textInputSufixoClasses.text + '\n';
+                crudPGPHP += '{\n';
+                crudPGPHP += '\tvar $tablename = "' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '";\n';
+                crudPGPHP += '\tvar $conexao;\n';
+                crudPGPHP += '\tvar $query;\n';
+                crudPGPHP += '\tfunction ' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + textInputSufixoClasses.text + '()\n';
+                crudPGPHP += '\t{\n';
+                crudPGPHP += '\t\t$this->conexao = new ' + textInputConexao.text + '();\n';
+                crudPGPHP += '\t}\n';
+                if (checkBoxSufixoFuncoes.selected)
+                    crudPGPHP += '\tpublic function listar' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '($search, $pagina)\n';
+                else
+                    crudPGPHP += '\tpublic function listar($search, $pagina)\n';
+                crudPGPHP += '\t{\n';
+                crudPGPHP += '\t\t$query_page1 = ($pagina-1)*100;\n';
+                crudPGPHP += '\t\t$query_page2 = 100;\n';
+                crudPGPHP += '\t\t$this->conexao->openConexao();\n';
+                crudPGPHP += '\t\tif($search != "")\n';
+                crudPGPHP += '\t\t{\n';
+                crudPGPHP += '\t\t\t$this->query = "SELECT * FROM ".$this->tablename;\n';
+                crudPGPHP += '\t\t\t$result = mysql_query($this->query);\n';
+                crudPGPHP += '\t\t\t$this->query = "SELECT * FROM ".$this->tablename." WHERE ";\n';
+                crudPGPHP += '\t\t\tfor($i=0;$i < mysql_num_fields($result);$i++)\n';
+                crudPGPHP += '\t\t\t{\n';
+                crudPGPHP += '\t\t\t\tif($i)\n';
+                crudPGPHP += '\t\t\t\t\t$this->query .= " OR ";\n';
+                crudPGPHP += '\t\t\t\t$this->query .= mysql_field_name($result, $i)." LIKE \'%".$search."%\'";\n';
+                crudPGPHP += '\t\t\t}\n';
+                crudPGPHP += '\t\t} else\n';
+                crudPGPHP += '\t\t{\n';
+                crudPGPHP += '\t\t\t$this->query = "SELECT * FROM ".$this->tablename;\n';
+                crudPGPHP += '\t\t}\n';
+                crudPGPHP += '\t\t$result = mysql_query($this->query);\n';
+                crudPGPHP += '\t\t$info = array();\n';
+                crudPGPHP += '\t\t$info[\'rows\'] = mysql_num_rows($result);\n';
+                crudPGPHP += '\t\t$info[\'pages\'] = ceil($info[\'rows\']/100);\n';
+                crudPGPHP += '\t\t$this->query .= " LIMIT ".$query_page1.",".$query_page2;\n';
+                crudPGPHP += '\t\t$result = mysql_query($this->query);\n';
+                crudPGPHP += '\t\t$this->throwExceptionOnError();\n';
+                crudPGPHP += '\t\t$rows = array();\n';
+                crudPGPHP += '\t\t$i = 0;\n';
+                crudPGPHP += '\t\twhile($row = mysql_fetch_object($result, "' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '"))\n';
+                crudPGPHP += '\t\t{\n';
+                crudPGPHP += '\t\t\t$rows[$i] = $row;\n';
+                crudPGPHP += '\t\t\t$i++;\n';
+                crudPGPHP += '\t\t}\n';
+                crudPGPHP += '\t\t$this->conexao->closeConexao();\n';
+                crudPGPHP += '\t\tarray_push($rows, $info);\n';
+                crudPGPHP += '\t\treturn $rows;\n';
+                crudPGPHP += '\t}\n';
+                if (checkBoxSufixoFuncoes.selected)
+                    crudPGPHP += '\tpublic function selecionar' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '($index)\n';
+                else
+                    crudPGPHP += '\tpublic function selecionar($index)\n';
+                crudPGPHP += '\t{\n';
+                crudPGPHP += '\t\t$this->conexao->openConexao();\n';
+                crudPGPHP += '\t\t$rows = array();\n';
+                crudPGPHP += '\t\t$this->query = "SELECT * FROM ".$this->tablename." \n';
+                crudPGPHP += '\t\tWHERE ' + campos[0].Field + " = '\".$index.\"'\";\n";
+                crudPGPHP += '\t\t$result = mysql_query($this->query);\n';
+                crudPGPHP += '\t\t$row = mysql_fetch_object($result, "' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '");\n';
+                crudPGPHP += '\t\t$rows[0] = $row;\n';
+                crudPGPHP += '\t\t$this->throwExceptionOnError();\n';
+                crudPGPHP += '\t\t$this->conexao->closeConexao();\n';
+                crudPGPHP += '\t\tif($result === false)\n';
+                crudPGPHP += '\t\t\treturn false;\n';
+                crudPGPHP += '\t\telse\n';
+                crudPGPHP += '\t\t\treturn $rows;\n';
+                crudPGPHP += '\t}\n';
+                if (checkBoxSufixoFuncoes.selected)
+                    crudPGPHP += '\tpublic function inserir' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '($obj, $search, $pagina)\n';
+                else
+                    crudPGPHP += '\tpublic function inserir($obj, $search, $pagina)\n';
+                crudPGPHP += '\t{\n';
+                crudPGPHP += '\t\t$this->conexao->openConexao();\n';
+                crudPGPHP += '\t\t$this->query = "INSERT INTO ".$this->tablename."\n';
+                crudPGPHP += '\t\t(';
+                for (i = 0; i < campos.length; i++) {
+                    if (i)
+                        crudPGPHP += ',';
+                    crudPGPHP += campos[i].Field;
+                }
+                crudPGPHP += ') \n';
+                crudPGPHP += '\t\tVALUES \n';
+                crudPGPHP += '\t\t(';
+                for (i = 0; i < campos.length; i++) {
+                    if (i)
+                        crudPGPHP += ',';
+                    if (campos[i].Field.toString().indexOf("Alteracao") != -1 || campos[i].Field.toString().indexOf("Inclusao") != -1)
+                        crudPGPHP += "'\".date(\"Y-m-d H:i:s\").\"'";
+                    else
+                        crudPGPHP += "'\".$obj->" + campos[i].Field + ".\"'";
+                }
+                crudPGPHP += ')";\n';
+                crudPGPHP += '\t\t$result = mysql_query($this->query);\n';
+                crudPGPHP += '\t\t$this->throwExceptionOnError();\n';
+                crudPGPHP += '\t\t$this->conexao->closeConexao();\n';
+                crudPGPHP += '\t\tif($result === false)\n';
+                crudPGPHP += '\t\t\treturn false;\n';
+                crudPGPHP += '\t\telse\n';
+                crudPGPHP += '\t\t\treturn $this->listar' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '($search, $pagina);\n';
+                crudPGPHP += '\t}\n';
+                if (checkBoxSufixoFuncoes.selected)
+                    crudPGPHP += '\tpublic function editar' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '($obj, $search, $pagina)\n';
+                else
+                    crudPGPHP += '\tpublic function editar($obj, $search, $pagina)\n';
+                crudPGPHP += '\t{\n';
+                crudPGPHP += '\t\t$this->conexao->openConexao();\n';
+                crudPGPHP += '\t\t$this->query = "UPDATE ".$this->tablename." SET\n\t\t';
+                for (i = 0; i < campos.length; i++) {
+                    if (i && campos[i].Field.toString().indexOf("Inclusao") == -1)
+                        crudPGPHP += ',';
+                    if (campos[i].Field.toString().indexOf("Alteracao") != -1 && campos[i].Field.toString().indexOf("Inclusao") == -1)
+                        crudPGPHP += campos[i].Field + " = '\".date(\"Y-m-d H:i:s\").\"'";
+                    else if (campos[i].Field.toString().indexOf("Inclusao") == -1)
+                        crudPGPHP += campos[i].Field + " = '\".$obj->" + campos[i].Field + ".\"'";
+                }
+                crudPGPHP += '\n\t\tWHERE ' + campos[0].Field + " = '\".$obj->" + campos[0].Field + ".\"'\";\n";
+                crudPGPHP += '\t\t$result = mysql_query($this->query);\n';
+                crudPGPHP += '\t\t$this->throwExceptionOnError();\n';
+                crudPGPHP += '\t\t$this->conexao->closeConexao();\n';
+                crudPGPHP += '\t\tif($result === false)\n';
+                crudPGPHP += '\t\t\treturn false;\n';
+                crudPGPHP += '\t\telse\n';
+                crudPGPHP += '\t\t\treturn $this->listar' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '($search, $pagina);\n';
+                crudPGPHP += '\t}\n';
+                if (checkBoxSufixoFuncoes.selected)
+                    crudPGPHP += '\tpublic function excluir' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '($index, $search, $pagina)\n';
+                else
+                    crudPGPHP += '\tpublic function excluir($index, $search, $pagina)\n';
+                crudPGPHP += '\t{\n';
+                crudPGPHP += '\t\t$this->conexao->openConexao();\n';
+                crudPGPHP += '\t\t$this->query = "DELETE FROM ".$this->tablename." \n';
+                crudPGPHP += '\t\tWHERE ' + campos[0].Field + " = '\".$index.\"'\";\n";
+                crudPGPHP += '\t\t$result = mysql_query($this->query);\n';
+                crudPGPHP += '\t\t$this->throwExceptionOnError();\n';
+                crudPGPHP += '\t\t$this->conexao->closeConexao();\n';
+                crudPGPHP += '\t\tif($result === false)\n';
+                crudPGPHP += '\t\t\treturn false;\n';
+                crudPGPHP += '\t\telse\n';
+                crudPGPHP += '\t\t\treturn $this->listar' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '($search, $pagina);	\n';
+                crudPGPHP += '\t}\n';
+                crudPGPHP += '\tprivate function throwExceptionOnError($link = null)\n';
+                crudPGPHP += '\t{\n';
+                crudPGPHP += '\t\tif($link == null) {\n';
+                crudPGPHP += '\t\t\t$link = $this->conexao->connection;\n';
+                crudPGPHP += '\t\t}\n';
+                crudPGPHP += '\t\tif(mysql_error($link)) {\n';
+                crudPGPHP += '\t\t\t$msg = mysql_errno($link) . ": " . mysql_error($link);\n';
+                crudPGPHP += '\t\t\tthrow new Exception(\'MySQL Error - \'. $msg. \'\\n Query: \'.$this->query);\n';
+                crudPGPHP += '\t\t}\n';
+                crudPGPHP += '\t}\n';
+                crudPGPHP += '}\n';
+                crudPGPHP += '?>';
+                textAreaCRUDPGPHP.text = crudPGPHP;
+                checkFile("crudpg_php");
+            } else if (view.id == "viewCRUDPHP") {
+                var crudPHP:String = '<?php\n';
+                crudPHP += "require_once '" + textInputConexao.text + ".php';\n";
+                crudPHP += "require_once '" + textInputAlias.text + "/" + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + ".php';\n";
+                crudPHP += 'class ' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + textInputSufixoClasses.text + '\n';
+                crudPHP += '{\n';
+                crudPHP += '\tvar $tablename = "' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '";\n';
+                crudPHP += '\tvar $conexao;\n';
+                crudPHP += '\tvar $query;\n';
+                crudPHP += '\tfunction ' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + textInputSufixoClasses.text + '()\n';
+                crudPHP += '\t{\n';
+                crudPHP += '\t\t$this->conexao = new ' + textInputConexao.text + '();\n';
+                crudPHP += '\t}\n';
+                if (checkBoxSufixoFuncoes.selected)
+                    crudPHP += '\tpublic function listar' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '()\n';
+                else
+                    crudPHP += '\tpublic function listar()\n';
+                crudPHP += '\t{\n';
+                crudPHP += '\t\t$this->conexao->openConexao();\n';
+                crudPHP += '\t\t$this->query = "SELECT * FROM ".$this->tablename;\n';
+                crudPHP += '\t\t$result = mysql_query($this->query);\n';
+                crudPHP += '\t\t$this->throwExceptionOnError();\n';
+                crudPHP += '\t\t$rows = array();\n';
+                crudPHP += '\t\t$i = 0;\n';
+                crudPHP += '\t\twhile($row = mysql_fetch_object($result, "' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '"))\n';
+                crudPHP += '\t\t{\n';
+                crudPHP += '\t\t\t$rows[$i] = $row;\n';
+                crudPHP += '\t\t\t$i++;\n';
+                crudPHP += '\t\t}\n';
+                crudPHP += '\t\t$this->conexao->closeConexao();\n';
+                crudPHP += '\t\treturn $rows;\n';
+                crudPHP += '\t}\n';
+                if (checkBoxSufixoFuncoes.selected)
+                    crudPHP += '\tpublic function selecionar' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '($index)\n';
+                else
+                    crudPHP += '\tpublic function selecionar($index)\n';
+                crudPHP += '\t{\n';
+                crudPHP += '\t\t$this->conexao->openConexao();\n';
+                crudPHP += '\t\t$rows = array();\n';
+                crudPHP += '\t\t$this->query = "SELECT * FROM ".$this->tablename." \n';
+                crudPHP += '\t\tWHERE ' + campos[0].Field + " = '\".$index.\"'\";\n";
+                crudPHP += '\t\t$result = mysql_query($this->query);\n';
+                crudPHP += '\t\t$row = mysql_fetch_object($result, "' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '");\n';
+                crudPHP += '\t\t$rows[0] = $row;\n';
+                crudPHP += '\t\t$this->throwExceptionOnError();\n';
+                crudPHP += '\t\t$this->conexao->closeConexao();\n';
+                crudPHP += '\t\tif($result === false)\n';
+                crudPHP += '\t\t\treturn false;\n';
+                crudPHP += '\t\telse\n';
+                crudPHP += '\t\t\treturn $rows;\n';
+                crudPHP += '\t}\n';
+                if (checkBoxSufixoFuncoes.selected)
+                    crudPHP += '\tpublic function inserir' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '($obj)\n';
+                else
+                    crudPHP += '\tpublic function inserir($obj)\n';
+                crudPHP += '\t{\n';
+                crudPHP += '\t\t$this->conexao->openConexao();\n';
+                crudPHP += '\t\t$this->query = "INSERT INTO ".$this->tablename."\n';
+                crudPHP += '\t\t(';
+                for (i = 0; i < campos.length; i++) {
+                    if (i)
+                        crudPHP += ',';
+                    crudPHP += campos[i].Field;
+                }
+                crudPHP += ') \n';
+                crudPHP += '\t\tVALUES \n';
+                crudPHP += '\t\t(';
+                for (i = 0; i < campos.length; i++) {
+                    if (i)
+                        crudPHP += ',';
+                    if (campos[i].Field.toString().indexOf("Alteracao") != -1 || campos[i].Field.toString().indexOf("Inclusao") != -1)
+                        crudPHP += "'\".date(\"Y-m-d H:i:s\").\"'";
+                    else
+                        crudPHP += "'\".$obj->" + campos[i].Field + ".\"'";
+                }
+                crudPHP += ')";\n';
+                crudPHP += '\t\t$result = mysql_query($this->query);\n';
+                crudPHP += '\t\t$this->throwExceptionOnError();\n';
+                crudPHP += '\t\t$this->conexao->closeConexao();\n';
+                crudPHP += '\t\tif($result === false)\n';
+                crudPHP += '\t\t\treturn false;\n';
+                crudPHP += '\t\telse\n';
+                crudPHP += '\t\t\treturn $this->listar' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '();\n';
+                crudPHP += '\t}\n';
+                if (checkBoxSufixoFuncoes.selected)
+                    crudPHP += '\tpublic function editar' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '($obj)\n';
+                else
+                    crudPHP += '\tpublic function editar($obj)\n';
+                crudPHP += '\t{\n';
+                crudPHP += '\t\t$this->conexao->openConexao();\n';
+                crudPHP += '\t\t$this->query = "UPDATE ".$this->tablename." SET\n\t\t';
+                for (i = 0; i < campos.length; i++) {
+                    if (i && campos[i].Field.toString().indexOf("Inclusao") == -1)
+                        crudPHP += ',';
+                    if (campos[i].Field.toString().indexOf("Alteracao") != -1 && campos[i].Field.toString().indexOf("Inclusao") == -1)
+                        crudPHP += campos[i].Field + " = '\".date(\"Y-m-d H:i:s\").\"'";
+                    else if (campos[i].Field.toString().indexOf("Inclusao") == -1)
+                        crudPHP += campos[i].Field + " = '\".$obj->" + campos[i].Field + ".\"'";
+                }
+                crudPHP += '\n\t\tWHERE ' + campos[0].Field + " = '\".$obj->" + campos[0].Field + ".\"'\";\n";
+                crudPHP += '\t\t$result = mysql_query($this->query);\n';
+                crudPHP += '\t\t$this->throwExceptionOnError();\n';
+                crudPHP += '\t\t$this->conexao->closeConexao();\n';
+                crudPHP += '\t\tif($result === false)\n';
+                crudPHP += '\t\t\treturn false;\n';
+                crudPHP += '\t\telse\n';
+                crudPHP += '\t\t\treturn $this->listar' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '();\n';
+                crudPHP += '\t}\n';
+                if (checkBoxSufixoFuncoes.selected)
+                    crudPHP += '\tpublic function excluir' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '($index)\n';
+                else
+                    crudPHP += '\tpublic function excluir($index)\n';
+                crudPHP += '\t{\n';
+                crudPHP += '\t\t$this->conexao->openConexao();\n';
+                crudPHP += '\t\t$this->query = "DELETE FROM ".$this->tablename." \n';
+                crudPHP += '\t\tWHERE ' + campos[0].Field + " = '\".$index.\"'\";\n";
+                crudPHP += '\t\t$result = mysql_query($this->query);\n';
+                crudPHP += '\t\t$this->throwExceptionOnError();\n';
+                crudPHP += '\t\t$this->conexao->closeConexao();\n';
+                crudPHP += '\t\tif($result === false)\n';
+                crudPHP += '\t\t\treturn false;\n';
+                crudPHP += '\t\telse\n';
+                crudPHP += '\t\t\treturn $this->listar' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '();	\n';
+                crudPHP += '\t}\n';
+                crudPHP += '\tprivate function throwExceptionOnError($link = null)\n';
+                crudPHP += '\t{\n';
+                crudPHP += '\t\tif($link == null) {\n';
+                crudPHP += '\t\t\t$link = $this->conexao->connection;\n';
+                crudPHP += '\t\t}\n';
+                crudPHP += '\t\tif(mysql_error($link)) {\n';
+                crudPHP += '\t\t\t$msg = mysql_errno($link) . ": " . mysql_error($link);\n';
+                crudPHP += '\t\t\tthrow new Exception(\'MySQL Error - \'. $msg. \'\\n Query: \'.$this->query);\n';
+                crudPHP += '\t\t}\n';
+                crudPHP += '\t}\n';
+                crudPHP += '}\n';
+                crudPHP += '?>';
+                textAreaCRUDPHP.text = crudPHP;
+                checkFile("crud_php");
+            } else if (view.id == "viewCRUDITEMPHP") {
+                var crudItemPHP:String = '<?php\n';
+                crudItemPHP += "require_once '" + textInputConexao.text + ".php';\n";
+                crudItemPHP += "require_once '" + textInputAlias.text + "/" + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + ".php';\n";
+                crudItemPHP += 'class ' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + textInputSufixoClasses.text + '\n';
+                crudItemPHP += '{\n';
+                crudItemPHP += '\tvar $tablename = "' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '";\n';
+                crudItemPHP += '\tvar $conexao;\n';
+                crudItemPHP += '\tvar $query;\n';
+                crudItemPHP += '\tfunction ' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + textInputSufixoClasses.text + '()\n';
+                crudItemPHP += '\t{\n';
+                crudItemPHP += '\t\t$this->conexao = new ' + textInputConexao.text + '();\n';
+                crudItemPHP += '\t}\n';
+                if (checkBoxSufixoFuncoes.selected)
+                    crudItemPHP += '\tpublic function listar' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '($index)\n';
+                else
+                    crudItemPHP += '\tpublic function listar($index)\n';
+                crudItemPHP += '\t{\n';
+                crudItemPHP += '\t\t$this->conexao->openConexao();\n';
+                crudItemPHP += '\t\t$this->query = "SELECT * FROM ".$this->tablename." WHERE ' + campos[1].Field + ' = \'".$index."\'";\n';
+                crudItemPHP += '\t\t$result = mysql_query($this->query);\n';
+                crudItemPHP += '\t\t$this->throwExceptionOnError();\n';
+                crudItemPHP += '\t\t$rows = array();\n';
+                crudItemPHP += '\t\t$i = 0;\n';
+                crudItemPHP += '\t\twhile($row = mysql_fetch_object($result, "' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '"))\n';
+                crudItemPHP += '\t\t{\n';
+                crudItemPHP += '\t\t\t$rows[$i] = $row;\n';
+                crudItemPHP += '\t\t\t$i++;\n';
+                crudItemPHP += '\t\t}\n';
+                crudItemPHP += '\t\t$this->conexao->closeConexao();\n';
+                crudItemPHP += '\t\treturn $rows;\n';
+                crudItemPHP += '\t}\n';
+                if (checkBoxSufixoFuncoes.selected)
+                    crudItemPHP += '\tpublic function selecionar' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '($index)\n';
+                else
+                    crudItemPHP += '\tpublic function selecionar($index)\n';
+                crudItemPHP += '\t{\n';
+                crudItemPHP += '\t\t$this->conexao->openConexao();\n';
+                crudItemPHP += '\t\t$rows = array();\n';
+                crudItemPHP += '\t\t$this->query = "SELECT * FROM ".$this->tablename." \n';
+                crudItemPHP += '\t\tWHERE ' + campos[0].Field + " = '\".$index.\"'\";\n";
+                crudItemPHP += '\t\t$result = mysql_query($this->query);\n';
+                crudItemPHP += '\t\t$row = mysql_fetch_object($result, "' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '");\n';
+                crudItemPHP += '\t\t$rows[0] = $row;\n';
+                crudItemPHP += '\t\t$this->throwExceptionOnError();\n';
+                crudItemPHP += '\t\t$this->conexao->closeConexao();\n';
+                crudItemPHP += '\t\tif($result === false)\n';
+                crudItemPHP += '\t\t\treturn false;\n';
+                crudItemPHP += '\t\telse\n';
+                crudItemPHP += '\t\t\treturn $rows;\n';
+                crudItemPHP += '\t}\n';
+                if (checkBoxSufixoFuncoes.selected)
+                    crudItemPHP += '\tpublic function inserir' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '($objcol)\n';
+                else
+                    crudItemPHP += '\tpublic function inserir($objcol)\n';
+                crudItemPHP += '\t{\n';
+                crudItemPHP += '\t\t$this->conexao->openConexao();\n';
+                crudItemPHP += '\t\t$return = true;\n';
+                crudItemPHP += '\t\tfor($i=0; $i<count($objcol); $i++)\n';
+                crudItemPHP += '\t\t{\n';
+                crudItemPHP += '\t\t	$obj = $objcol[$i];\n';
+                crudItemPHP += '\t\t	$this->query = "INSERT INTO ".$this->tablename."\n';
+                crudItemPHP += '\t\t	(';
+                for (i = 0; i < campos.length; i++) {
+                    if (i)
+                        crudItemPHP += ',';
+                    crudItemPHP += campos[i].Field;
+                }
+                crudItemPHP += ') \n';
+                crudItemPHP += '\t\t	VALUES \n';
+                crudItemPHP += '\t\t	(';
+                for (i = 0; i < campos.length; i++) {
+                    if (i)
+                        crudItemPHP += ',';
+                    if (campos[i].Field.toString().indexOf("Alteracao") != -1 || campos[i].Field.toString().indexOf("Inclusao") != -1)
+                        crudItemPHP += "'\".date(\"Y-m-d H:i:s\").\"'";
+                    else
+                        crudItemPHP += "'\".$obj->" + campos[i].Field + ".\"'";
+                }
+                crudItemPHP += ')";\n';
+                crudItemPHP += '\t\t	$result = mysql_query($this->query);\n';
+                crudItemPHP += '\t\t	$this->throwExceptionOnError();\n';
+                crudItemPHP += '\t\t	$return &= $result;\n';
+                crudItemPHP += '\t\t}\n';
+                crudItemPHP += '\t\t$this->conexao->closeConexao();\n';
+                crudItemPHP += '\t\treturn $return;\n';
+                crudItemPHP += '\t}\n';
+                if (checkBoxSufixoFuncoes.selected)
+                    crudItemPHP += '\tpublic function editar' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '($objcol)\n';
+                else
+                    crudItemPHP += '\tpublic function editar($objcol)\n';
+                crudItemPHP += '\t{\n';
+                crudItemPHP += '\t\t$this->conexao->openConexao();\n';
+                crudItemPHP += '\t\t$return = true;\n';
+                crudItemPHP += '\t\tfor($i=0; $i<count($objcol); $i++)\n';
+                crudItemPHP += '\t\t{\n';
+                crudItemPHP += '\t\t	$obj = $objcol[$i];\n';
+                crudItemPHP += '\t\t	if(!$obj->' + campos[0].Field + ')\n';
+                crudItemPHP += '\t\t	{\n';
+                crudItemPHP += '\t\t		$this->query = "INSERT INTO ".$this->tablename."\n';
+                crudItemPHP += '\t\t		(';
+                for (i = 0; i < campos.length; i++) {
+                    if (i)
+                        crudItemPHP += ',';
+                    crudItemPHP += campos[i].Field;
+                }
+                crudItemPHP += ') \n';
+                crudItemPHP += '\t\t		VALUES \n';
+                crudItemPHP += '\t\t		(';
+                for (i = 0; i < campos.length; i++) {
+                    if (i)
+                        crudItemPHP += ',';
+                    if (campos[i].Field.toString().indexOf("Alteracao") != -1 || campos[i].Field.toString().indexOf("Inclusao") != -1)
+                        crudItemPHP += "'\".date(\"Y-m-d H:i:s\").\"'";
+                    else
+                        crudItemPHP += "'\".$obj->" + campos[i].Field + ".\"'";
+                }
+                crudItemPHP += ')";\n';
+                crudItemPHP += '\t\t	} else\n';
+                crudItemPHP += '\t\t	{\n';
+                crudItemPHP += '\t\t		$this->query = "UPDATE ".$this->tablename." SET\n\t\t\t\t';
+                for (i = 0; i < campos.length; i++) {
+                    if (i && campos[i].Field.toString().indexOf("Inclusao") == -1)
+                        crudItemPHP += ',';
+                    if (campos[i].Field.toString().indexOf("Alteracao") != -1 && campos[i].Field.toString().indexOf("Inclusao") == -1)
+                        crudItemPHP += campos[i].Field + " = '\".date(\"Y-m-d H:i:s\").\"'";
+                    else if (campos[i].Field.toString().indexOf("Inclusao") == -1)
+                        crudItemPHP += campos[i].Field + " = '\".$obj->" + campos[i].Field + ".\"'";
+                }
+                crudItemPHP += '\n\t\t\t\tWHERE ' + campos[0].Field + " = '\".$obj->" + campos[0].Field + ".\"'\";\n";
+                crudItemPHP += '\t\t	}\n';
+                crudItemPHP += '\t\t	$result = mysql_query($this->query);\n';
+                crudItemPHP += '\t\t	$this->throwExceptionOnError();\n';
+                crudItemPHP += '\t\t	$return &= $result;\n';
+                crudItemPHP += '\t\t}\n';
+                crudItemPHP += '\t\t$this->conexao->closeConexao();\n';
+                crudItemPHP += '\t\treturn $return;\n';
+                crudItemPHP += '\t}\n';
+                if (checkBoxSufixoFuncoes.selected)
+                    crudItemPHP += '\tpublic function excluir' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + '($index)\n';
+                else
+                    crudItemPHP += '\tpublic function excluir($index)\n';
+                crudItemPHP += '\t{\n';
+                crudItemPHP += '\t\t$this->conexao->openConexao();\n';
+                crudItemPHP += '\t\t$this->query = "DELETE FROM ".$this->tablename." \n';
+                crudItemPHP += '\t\tWHERE ' + campos[1].Field + " = '\".$index.\"'\";\n";
+                crudItemPHP += '\t\t$result = mysql_query($this->query);\n';
+                crudItemPHP += '\t\t$this->throwExceptionOnError();\n';
+                crudItemPHP += '\t\t$this->conexao->closeConexao();\n';
+                crudItemPHP += '\t\tif($result === false)\n';
+                crudItemPHP += '\t\t	return false;\n';
+                crudItemPHP += '\t}\n';
+                var xnome:String = dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] as String;
+                crudItemPHP += '\tpublic function excluir' + xnome.slice(0, xnome.length - 1) + '($index)\n';
+                crudItemPHP += '\t{\n';
+                crudItemPHP += '\t\t$this->conexao->openConexao();\n';
+                crudItemPHP += '\t\t$this->query = "DELETE FROM ".$this->tablename." \n';
+                crudItemPHP += '\t\tWHERE ' + campos[0].Field + " = '\".$index.\"'\";\n";
+                crudItemPHP += '\t\t$result = mysql_query($this->query);\n';
+                crudItemPHP += '\t\t$this->throwExceptionOnError();\n';
+                crudItemPHP += '\t\t$this->conexao->closeConexao();\n';
+                crudItemPHP += '\t\tif($result === false)\n';
+                crudItemPHP += '\t\t	return false;\n';
+                crudItemPHP += '\t}\n';
+                crudItemPHP += '\tprivate function throwExceptionOnError($link = null)\n';
+                crudItemPHP += '\t{\n';
+                crudItemPHP += '\t\tif($link == null) {\n';
+                crudItemPHP += '\t\t\t$link = $this->conexao->connection;\n';
+                crudItemPHP += '\t\t}\n';
+                crudItemPHP += '\t\tif(mysql_error($link)) {\n';
+                crudItemPHP += '\t\t\t$msg = mysql_errno($link) . ": " . mysql_error($link);\n';
+                crudItemPHP += '\t\t\tthrow new Exception(\'MySQL Error - \'. $msg. \'\\n Query: \'.$this->query);\n';
+                crudItemPHP += '\t\t}\n';
+                crudItemPHP += '\t}\n';
+                crudItemPHP += '}\n';
+                crudItemPHP += '?>';
+                textAreaCRUDITEMPHP.text = crudItemPHP;
+                checkFile("cruditem_php");
+            } else if (view.id == "viewMXMLFlex") {
+                var campom:String;
+                var tipom:String;
+                var nomem:String;
+                var tamanhom:String;
+                var tagm:String;
+                var sizem:String;
+                var descm:String;
+                var siglam:String = campos[0].Field.toString().slice(0, 3);
+                var tabelam:String = dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database];
+                var TABELAM:String = tabelam.toUpperCase();
+                var TabelaM:String = ucfirst(tabelam);
+                var nomet:String = tabelam.slice(3, tabelam.length - 1);
+                var NOMET:String = nomet.toUpperCase();
+                var NomeT:String = ucfirst(nomet);
+                var mxml:String = '<?xml version="1.0" encoding="utf-8"?>';
+                mxml += '\n<mx:VBox xmlns:fx="http://ns.adobe.com/mxml/2009"';
+                mxml += '\n	xmlns:s="library://ns.adobe.com/flex/spark"';
+                mxml += '\n	xmlns:mx="library://ns.adobe.com/flex/mx"';
+                mxml += '\n	width="100%" height="100%"';
+                mxml += '\n	label="' + NOMET + 'S"';
+                mxml += '\n	creationComplete="refresh();" xmlns:components="components.*" xmlns:buttons="view.buttons.*">';
+                mxml += '\n	<fx:Script>';
+                mxml += '\n	<![CDATA[';
+                mxml += '\n	import flash.utils.getDefinitionByName;';
+                mxml += '\n';
+                mxml += '\n	import model.vo.' + tabelam + ';';
+                mxml += '\n';
+                mxml += '\n	import mx.collections.ArrayCollection;';
+                mxml += '\n	import mx.controls.Alert;';
+                mxml += '\n	import mx.core.FlexGlobals;';
+                mxml += '\n	import mx.events.CloseEvent;';
+                mxml += '\n	import mx.events.ListEvent;';
+                mxml += '\n	import mx.rpc.events.FaultEvent;';
+                mxml += '\n	import mx.rpc.events.ResultEvent;';
+                mxml += '\n	import mx.utils.ObjectUtil;';
+                mxml += '\n	import mx.validators.Validator;';
+                mxml += '\n	';
+                mxml += '\n	import scripts.functions;';
+                mxml += '\n	';
+                mxml += '\n	[Bindable]';
+                mxml += '\n	private var ' + nomet + 's:ArrayCollection;';
+                mxml += '\n	[Bindable]';
+                mxml += '\n	private var ' + nomet + 'Temp:' + tabelam + ' = new ' + tabelam + ';';
+                mxml += '\n	';
+                mxml += '\n	public function refresh():void';
+                mxml += '\n	{';
+                mxml += '\n		remote' + NomeT + 's.listar' + tabelam + '();';
+                mxml += '\n	}';
+                mxml += '\n	';
+                mxml += '\n	protected function listar' + tabelam + '_resultHandler(event:ResultEvent):void';
+                mxml += '\n	{';
+                mxml += '\n		' + nomet + 'Temp = new ' + tabelam + ';';
+                mxml += '\n		' + nomet + 's = new ArrayCollection(event.result as Array);';
+                mxml += '\n		labelRodape.text = " Foram encontrados " + ' + nomet + 's.length + " registros.";';
+                mxml += '\n	}';
+                mxml += '\n	protected function inserir' + tabelam + '_resultHandler(event:ResultEvent):void';
+                mxml += '\n	{';
+                mxml += '\n		listar' + tabelam + '_resultHandler(event);';
+                mxml += '\n		FlexGlobals.topLevelApplication.showAlert("' + NomeT + ' inserido com sucesso !!!", "AVISO", "aviso");';
+                mxml += '\n	}';
+                mxml += '\n	protected function editar' + tabelam + '_resultHandler(event:ResultEvent):void';
+                mxml += '\n	{';
+                mxml += '\n		listar' + tabelam + '_resultHandler(event);';
+                mxml += '\n		FlexGlobals.topLevelApplication.showAlert("' + NomeT + ' editado com sucesso !!!", "AVISO", "aviso");';
+                mxml += '\n	}';
+                mxml += '\n	protected function excluir' + tabelam + '_resultHandler(event:ResultEvent):void';
+                mxml += '\n	{';
+                mxml += '\n		listar' + tabelam + '_resultHandler(event);';
+                mxml += '\n		FlexGlobals.topLevelApplication.showAlert("' + NomeT + ' excluido com sucesso !!!", "AVISO", "aviso");';
+                mxml += '\n	}';
+                mxml += '\n	protected function remote_faultHandler(event:FaultEvent):void';
+                mxml += '\n	{';
+                mxml += '\n		FlexGlobals.topLevelApplication.showAlert("Code("+event.fault.errorID.toString(10)+"): "+event.fault.faultString + "\\nDetalhes:"+ event.fault.faultDetail, "ERRO("+event.fault.faultCode+")", "erro");';
+                mxml += '\n	}';
+                mxml += '\n	protected function dataGrid' + NomeT + 's_changeHandler(event:ListEvent):void';
+                mxml += '\n	{';
+                mxml += '\n		' + nomet + 'Temp = dataGrid' + NomeT + 's.selectedItem as ' + tabelam + ';';
+                mxml += '\n	}';
+                mxml += '\n	protected function buttonNovo_clickHandler(event:MouseEvent):void';
+                mxml += '\n	{';
+                mxml += '\n		' + nomet + 'Temp = new ' + tabelam + ';';
+                mxml += '\n	}';
+                mxml += '\n	protected function buttonSalvar_clickHandler(event:MouseEvent):void';
+                mxml += '\n	{';
+                mxml += '\n		var erros:Array = Validator.validateAll(listaValidators);';
+                mxml += '\n		if(erros.length != 0)';
+                mxml += '\n		{';
+                mxml += '\n			FlexGlobals.topLevelApplication.showAlert("ERRO: existem campos com erro, verifique os campos em vermelho no formulário ("+erros.length+") !!!","ERRO", "erro");';
+                mxml += '\n		} ';
+                mxml += '\n		else';
+                mxml += '\n		{';
+                mxml += '\n			if(' + nomet + 'Temp.' + siglam + 'nId == 0)';
+                mxml += '\n			{';
+                mxml += '\n				remote' + NomeT + 's.inserir' + tabelam + '(' + nomet + 'Temp);';
+                mxml += '\n			} else';
+                mxml += '\n			{';
+                mxml += '\n				remote' + NomeT + 's.editar' + tabelam + '(' + nomet + 'Temp);';
+                mxml += '\n			}';
+                mxml += '\n		}';
+                mxml += '\n	}';
+                mxml += '\n	public function buttonExcluir_clickHandler(event:MouseEvent):void';
+                mxml += '\n	{';
+                mxml += '\n		FlexGlobals.topLevelApplication.showConfirm("Deseja realmente excluir o ' + nomet + ' \'"+' + nomet + 'Temp.' + siglam + 'sNome+"\' ?", "EXCLUSÃO", excluir' + NomeT + ');';
+                mxml += '\n	}';
+                mxml += '\n	private function excluir' + NomeT + '(event:CloseEvent):void';
+                mxml += '\n	{';
+                mxml += '\n		if(event.detail == Alert.YES)';
+                mxml += '\n			remote' + NomeT + 's.excluir' + tabelam + '(' + nomet + 'Temp.' + siglam + 'nId);';
+                mxml += '\n	}';
+                mxml += '\n	protected function filtro' + NomeT + 's_keyUpHandler(event:KeyboardEvent):void';
+                mxml += '\n	{';
+                mxml += '\n		labelRodape.text = " Foram encontrados " + ' + nomet + 's.length + " registros.";';
+                mxml += '\n	}';
+                mxml += '\n	]]\>';
+                mxml += '</fx:Script>\n';
+
+                mxml += '	<fx:Declarations>\n';
+                mxml += '		<fx:Array id="listaValidators">\n';
+                for (i = 0; i < campos.length - 2; i++) {
+                    nomem = campos[i].Field.toString().slice(4, campos[i].Field.toString().length);
+                    campom = campos[i].Type.toString();
+                    tamanhom = campom.slice(campom.indexOf('(') + 1, campom.length - 1);
+                    if (campom.indexOf("varchar") != -1) {
+                        mxml += '		\t<mx:StringValidator source="{textInput' + nomem + '}" property="text" \n';
+                        mxml += '		\trequired="{(textInput' + nomem + '.parent as FormItem).required}" \n';
+                        mxml += '		\tminLength="3" maxLength="' + tamanhom + '" \n';
+                        mxml += '		\ttriggerEvent=""/>\n';
+                    }
+                    else if (campom.indexOf("longtext") != -1) {
+                        mxml += '		\t<mx:StringValidator source="{textArea' + nomem + '}" property="text" \n';
+                        mxml += '		\trequired="{(textArea' + nomem + '.parent as FormItem).required}" \n';
+                        mxml += '		\tminLength="3" \n';
+                        mxml += '		\ttriggerEvent=""/>\n';
+                    } else if (campom.indexOf("int") != -1 && tamanhom == "11" && i > 0) {
+                        mxml += '		\t<mx:NumberValidator source="{dropDownList' + nomem + '}" property="selectedIndex" \n';
+                        mxml += '		\trequired="{(dropDownList' + nomem + '.parent as FormItem).required}" \n';
+                        mxml += '		\tnegativeError="Você deve escolher um item." \n';
+                        mxml += '		\tallowNegative="false" \n';
+                        mxml += '		\ttriggerEvent=""/>\n';
+                    } else if (campom.indexOf("date") != -1) {
+                        mxml += '		\t<mx:DateValidator source="{dateField' + nomem + '}" property="text" \n';
+                        mxml += '		\trequired="{(dateField' + nomem + '.parent as FormItem).required}" \n';
+                        mxml += '		\tinputFormat="dd/mm/yyyy"	allowedFormatChars="/" \n';
+                        mxml += '		\ttriggerEvent=""/>\n';
+                    } else if (campom.indexOf("double") != -1) {
+                        mxml += '		\t<mx:NumberValidator source="{textInput' + nomem + '}" property="text" \n';
+                        mxml += '		\trequired="{(textInput' + nomem + '.parent as FormItem).required}" \n';
+                        mxml += '		\tminValue="1" domain="real"\n';
+                        mxml += '		\ttriggerEvent=""/>\n';
+                    } else if (campom.indexOf("int") != -1) {
+                        mxml += '		\t<mx:NumberValidator source="{textInput' + nomem + '}" property="text" \n';
+                        mxml += '		\trequired="{(textInput' + nomem + '.parent as FormItem).required}" \n';
+                        mxml += '		\tminValue="1" maxValue="' + (Math.pow(10, Number(tamanhom)) - 1).toString() + '" domain="int"\n';
+                        mxml += '		\ttriggerEvent=""/>\n';
+                    }
+                }
+                mxml += '		</fx:Array>\n';
+                mxml += '		<s:RemoteObject endpoint="amf/index.php" \n';
+                mxml += '					id="remote' + NomeT + 's" \n';
+                mxml += '					source="' + tabelam + textInputSufixoClasses.text + '" \n';
+                mxml += '					destination="' + tabelam + textInputSufixoClasses.text + '"\n';
+                mxml += '					showBusyCursor="true"\n';
+                mxml += '					fault="remote_faultHandler(event)">\n';
+                mxml += '			<s:method name="listar' + tabelam + '" result="listar' + tabelam + '_resultHandler(event)"/>\n';
+                mxml += '			<s:method name="inserir' + tabelam + '" result="inserir' + tabelam + '_resultHandler(event)"/>\n';
+                mxml += '			<s:method name="editar' + tabelam + '" result="editar' + tabelam + '_resultHandler(event)"/>\n';
+                mxml += '			<s:method name="excluir' + tabelam + '" result="excluir' + tabelam + '_resultHandler(event)"/>\n';
+                mxml += '		</s:RemoteObject>\n';
+                mxml += '	</fx:Declarations>\n';
+                mxml += '	<s:HGroup width="100%" height="23">\n';
+                mxml += '		<mx:Spacer height="19" width="10"/>\n';
+                mxml += '		<mx:Button label="Novo" id="buttonNovo"\n';
+                mxml += '			   click="buttonNovo_clickHandler(event)"\n';
+                mxml += '			   icon="@Embed(source=\'images/Filetype-Blank-Alt-icon[3].png\')"/>\n';
+                mxml += '		<mx:Button label="Salvar" id="buttonSalvar" \n';
+                mxml += '			   click="buttonSalvar_clickHandler(event)"\n';
+                mxml += '			   icon="@Embed(source=\'images/Sign-Add-icon[2].png\')"/>\n';
+                mxml += '		<mx:Spacer height="19" width="100%"/>\n';
+                mxml += '	</s:HGroup>\n';
+                mxml += '	<mx:VDividedBox width="100%" height="100%">\n';
+                mxml += '		<mx:VBox width="100%" height="270" verticalScrollPolicy="auto">\n';
+                mxml += '			<mx:Form width="100%" height="100%">\n';
+                for (i = 0; i < campos.length - 2; i++) {
+                    descm = campos[i].Field.toString();
+                    nomem = campos[i].Field.toString().slice(4, campos[i].Field.toString().length);
+                    tagm = campos[i].Field.toString().slice(3, 4);
+                    tipom = campos[i].Type.toString();
+                    tamanhom = tipom.slice(tipom.indexOf('(') + 1, tipom.length - 1);
+                    if (Number(tamanhom) > 30) {
+                        size = 'width="570"';
+                    } else {
+                        size = 'widthInChars="' + tamanhom + '"';
+                    }
+                    if (checkBoxComentarios.selected) {
+                        mxml += '			\t<mx:FormItem label="' + nomem + ':" toolTip="{tips.' + campos[i].Field + '}">\n';
+                    } else {
+                        mxml += '			\t<mx:FormItem label="' + nomem + ':">\n';
+                    }
+                    if (i == 0) {
+                        mxml += '			\t\t<s:TextInput id="textInput' + nomem + '" text="{' + nomet + 'Temp.' + descm + '}" width="50" enabled="false"/>\n';
+                    } else if (tipom.indexOf("varchar") != -1) {
+                        mxml += '			\t\t<s:TextInput id="textInput' + nomem + '" text="@{' + nomet + 'Temp.' + descm + '}" ' + size + '/>\n';
+                    } else if (tipom.indexOf("longtext") != -1) {
+                        mxml += '			\t\t<s:TextArea id="textArea' + nomem + '" text="@{' + nomet + 'Temp.' + descm + '}" width="570" height="50"/>\n';
+                    } else if (tipom.indexOf("int") != -1 && tamanhom == "11") {
+                        mxml += '			\t\t<s:DropDownList id="dropDownList' + nomem + '" dataProvider="{' + nomem.toLowerCase() + 's}" labelField="" width="570"/>\n';
+                    } else if (tipom.indexOf("int") != -1) {
+                        mxml += '			\t\t<components:TextInputIntItem id="textInput' + nomem + '" textAlign="center" integer="@{' + nomet + 'Temp.' + descm + '}" ' + sizem + '/>\n';
+                    } else if (tipom.indexOf("date") != -1) {
+                        mxml += '			\t\t<components:DateItem id="dateField' + nomem + '" dateSQL="@{' + nomet + 'Temp.' + descm + '}"/>\n';
+                    } else if (tipom.indexOf("double") != -1 && tagm == "f") {
+                        mxml += '			\t\t<components:TextInputFloatItem id="textInput' + nomem + '" double="@{' + nomet + 'Temp.' + descm + '}" widthInChars="4"/>\n';
+                    } else if (tipom.indexOf("double") != -1 && tagm == "m") {
+                        mxml += '			\t\t<components:TextInputCurrencyItem id="textInput' + nomem + '" currency="@{' + nomet + 'Temp.' + descm + '}"/>\n';
+                    } else if (tipom.indexOf("set") != -1) {
+                        mxml += '			\t\t<s:CheckBox id="checkBox' + nomem + '"/>\n';
+                    }
+                    mxml += '			\t</mx:FormItem>\n';
+                }
+                mxml += '				<mx:HRule height="21" width="100%"/>\n';
+                mxml += '			</mx:Form>\n';
+                mxml += '		</mx:VBox>\n';
+                mxml += '		<mx:VBox width="100%" height="120">\n';
+                mxml += '			<mx:HBox>\n';
+                mxml += '				<components:FilterDataGrid id="filtro' + NomeT + 's" dataProvider="{' + nomet + 's}" \n';
+                mxml += '										   fields="{functions.getDataFieldsDataGrid(dataGrid' + NomeT + 's)}"\n';
+                mxml += '										   keyUp="filtro' + NomeT + 's_keyUpHandler(event)"/>\n';
+                mxml += '				<buttons:ButtonQueryAdvanced id="buttonQueryAdvanced" tabela="' + tabelam + '" titulo="' + NomeT + 's"/>\n';
+                mxml += '				<components:ExportDataGrid id="exportar' + NomeT + 's" dataProvider="{' + nomet + 's}" \n';
+                mxml += '										   table="' + NomeT + 's"\n';
+                mxml += '										   fields="{functions.getDataFieldsDataGrid(dataGrid' + NomeT + 's)}"\n';
+                mxml += '										   headers="{functions.getHeaderTextDataGrid(dataGrid' + NomeT + 's)}"/>\n';
+                mxml += '				<buttons:ButtonReport id="buttonPrint' + NomeT + 's" \n';
+                mxml += '										 reportFile="Report' + NomeT + 's.mrt"/>\n';
+                mxml += '			</mx:HBox>\n';
+                mxml += '			<mx:DataGrid id="dataGrid' + NomeT + 's" dataProvider="{' + nomet + 's}" height="100%" width="100%" change="dataGrid' + NomeT + 's_changeHandler(event)">\n';
+                mxml += '			\t<mx:columns>\n';
+                for (i = 0; i < campos.length - 2; i++) {
+                    nomem = campos[i].Field.toString().slice(4, campos[i].Field.toString().length);
+                    campom = campos[i].Type.toString();
+                    tamanhom = campom.slice(campom.indexOf('(') + 1, campom.length - 1);
+                    mxml += '			\t\t<mx:DataGridColumn headerText="' + nomem + '" dataField="' + campos[i].Field.toString() + '"/>\n';
+                }
+                mxml += '			\t\t<mx:DataGridColumn headerText="Excluir" width="70">\n';
+                mxml += '			\t\t	<mx:itemRenderer>\n';
+                mxml += '			\t\t		<fx:Component>\n';
+                mxml += '			\t\t			<mx:HBox horizontalAlign="center">\n';
+                mxml += '			\t\t				<mx:Image\n';
+                mxml += '			\t\t					id="buttonExcluir"\n';
+                mxml += '			\t\t					click="parentDocument.buttonExcluir_clickHandler(event)"\n';
+                mxml += '			\t\t					source="@Embed(source=\'images/x.gif\')"/>\n';
+                mxml += '			\t\t			</mx:HBox>\n';
+                mxml += '			\t\t		</fx:Component>\n';
+                mxml += '			\t\t	</mx:itemRenderer>\n';
+                mxml += '			\t\t</mx:DataGridColumn>\n';
+                mxml += '			\t</mx:columns>\n';
+                mxml += '			</mx:DataGrid>\n';
+                mxml += '			<s:Label id="labelRodape"/>	\n';
+                mxml += '		</mx:VBox>\n';
+                mxml += '	</mx:VDividedBox>\n';
+                mxml += '</mx:VBox>\n';
+
+                textAreaMXMLFlex.text = mxml;
+                checkFile("component_mxml");
+            } else if (view.id == "viewFormFlex") {
+                var formFlex:String = '<mx:Form width="100%" height="100%">\n';
+                var tab:String = dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database].slice(3, dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database].length - 1);
+                var campo:String;
+                var tag:String;
+                var nome:String;
+                var tamanho:String;
+                var size:String;
+                var desc:String;
+                for (i = 0; i < campos.length; i++) {
+                    desc = campos[i].Field.toString();
+                    nome = campos[i].Field.toString().slice(4, campos[i].Field.toString().length);
+                    tag = campos[i].Field.toString().slice(3, 4);
+                    campo = campos[i].Type.toString();
+                    tamanho = campo.slice(campo.indexOf('(') + 1, campo.length - 1);
+                    if (Number(tamanho) > 30) {
+                        size = 'width="570"';
+                    } else {
+                        size = 'widthInChars="' + tamanho + '"';
+                    }
+                    if (checkBoxComentarios.selected) {
+                        formFlex += '\t<mx:FormItem label="' + nome + ':" toolTip="{tips.' + campos[i].Field + '}">\n';
+                    } else {
+                        formFlex += '\t<mx:FormItem label="' + nome + ':">\n';
+                    }
+                    if (i == 0) {
+                        formFlex += '\t\t<s:TextInput id="textInput' + nome + '" text="{' + tab + 'Temp.' + desc + '}" width="50" enabled="false"/>\n';
+                    } else if (campo.indexOf("varchar") != -1) {
+                        formFlex += '\t\t<s:TextInput id="textInput' + nome + '" text="@{' + tab + 'Temp.' + desc + '}" ' + size + '/>\n';
+                    } else if (campo.indexOf("longtext") != -1) {
+                        formFlex += '\t\t<s:TextArea id="textArea' + nome + '" text="@{' + tab + 'Temp.' + desc + '}" width="570" height="50"/>\n';
+                    } else if (campo.indexOf("int") != -1 && tamanho == "11") {
+                        formFlex += '\t\t<s:DropDownList id="dropDownList' + nome + '" dataProvider="{' + nome.toLowerCase() + 's}" labelField="" width="570"/>\n';
+                    } else if (campo.indexOf("int") != -1) {
+                        formFlex += '\t\t<components:TextInputIntItem id="textInput' + nome + '" textAlign="center" integer="@{' + tab + 'Temp.' + desc + '}" ' + size + '/>\n';
+                    } else if (campo.indexOf("date") != -1) {
+                        formFlex += '\t\t<components:DateItem id="dateField' + nome + '" dateSQL="@{' + tab + 'Temp.' + desc + '}"/>\n';
+                    } else if (campo.indexOf("double") != -1 && tag == "f") {
+                        formFlex += '\t\t<components:TextInputFloatItem id="textInput' + nome + '" double="@{' + tab + 'Temp.' + desc + '}" widthInChars="4"/>\n';
+                    } else if (campo.indexOf("double") != -1 && tag == "m") {
+                        formFlex += '\t\t<components:TextInputCurrencyItem id="textInput' + nome + '" currency="@{' + tab + 'Temp.' + desc + '}"/>\n';
+                    } else if (campo.indexOf("set") != -1) {
+                        formFlex += '\t\t<s:CheckBox id="checkBox' + nome + '"/>\n';
+                    }
+                    formFlex += '\t</mx:FormItem>\n';
+                }
+                formFlex += '</mx:Form>';
+                textAreaFormFlex.text = formFlex;
+            } else if (view.id == "viewRemoteFlex") {
+                Alert.show("Esta função está desabilitada", "AVISO");
+                /*pathFile = textInputFlexPath.text;
+                pathFile += textInputCrudPath.text;
+                pathFile += dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + textInputSufixoClasses.text + ".php";
+                remote.metodosArquivo(pathFile);*/
+            } else if (view.id == "viewDataGridFlex") {
+                var tabela:String = dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database].slice(3, dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database].length);
+                var dataGridFlex:String = '<mx:DataGrid id="dataGrid' + ucfirst(tabela) + '" dataProvider="{' + tabela + '}" height="100%" width="100%" change="dataGrid' + ucfirst(tabela) + '_changeHandler(event)">\n';
+                dataGridFlex += '\t<mx:columns>\n';
+                var campod:String;
+                var nomed:String;
+                var tamanhod:String;
+                var sized:String;
+                for (i = 0; i < campos.length; i++) {
+                    nomed = campos[i].Field.toString().slice(4, campos[i].Field.toString().length);
+                    campod = campos[i].Type.toString();
+                    tamanhod = campod.slice(campod.indexOf('(') + 1, campod.length - 1);
+                    dataGridFlex += '\t\t<mx:DataGridColumn headerText="' + nomed + '" dataField="' + campos[i].Field.toString() + '"/>\n';
+                }
+                dataGridFlex += '\t</mx:columns>\n';
+                dataGridFlex += '</mx:DataGrid>';
+                textAreaDataGridFlex.text = dataGridFlex;
+            } else if (view.id == "viewValidatorsFlex") {
+                //var tabelav:String = dropDownListTabelas.selectedItem['Tables_in_'+dropDownListBancos.selectedItem.Database].slice(3,dropDownListTabelas.selectedItem['Tables_in_'+dropDownListBancos.selectedItem.Database].length);
+                var validatorsFlex:String = '<fx:Array id="listaValidators">\n';
+                var campov:String;
+                var nomev:String;
+                var tamanhov:String;
+                for (i = 0; i < campos.length; i++) {
+                    nomev = campos[i].Field.toString().slice(4, campos[i].Field.toString().length);
+                    campov = campos[i].Type.toString();
+                    tamanhov = campov.slice(campov.indexOf('(') + 1, campov.length - 1);
+                    if (campov.indexOf("varchar") != -1) {
+                        validatorsFlex += '\t<mx:StringValidator source="{textInput' + nomev + '}" property="text" \n';
+                        validatorsFlex += '\trequired="{(textInput' + nomev + '.parent as FormItem).required}" \n';
+                        validatorsFlex += '\tminLength="3" maxLength="' + tamanhov + '" \n';
+                        validatorsFlex += '\ttriggerEvent=""/>\n';
+                    }
+                    else if (campov.indexOf("longtext") != -1) {
+                        validatorsFlex += '\t<mx:StringValidator source="{textArea' + nomev + '}" property="text" \n';
+                        validatorsFlex += '\trequired="{(textArea' + nomev + '.parent as FormItem).required}" \n';
+                        validatorsFlex += '\tminLength="3" \n';
+                        validatorsFlex += '\ttriggerEvent=""/>\n';
+                    } else if (campov.indexOf("int") != -1 && tamanhov == "11") {
+                        validatorsFlex += '\t<mx:NumberValidator source="{dropDownList' + nomev + '}" property="selectedIndex" \n';
+                        validatorsFlex += '\trequired="{(dropDownList' + nomev + '.parent as FormItem).required}" \n';
+                        validatorsFlex += '\tnegativeError="Você deve escolher um item." \n';
+                        validatorsFlex += '\tallowNegative="false" \n';
+                        validatorsFlex += '\ttriggerEvent=""/>\n';
+                    } else if (campov.indexOf("date") != -1) {
+                        validatorsFlex += '\t<mx:DateValidator source="{dateField' + nomev + '}" property="text" \n';
+                        validatorsFlex += '\trequired="{(dateField' + nomev + '.parent as FormItem).required}" \n';
+                        validatorsFlex += '\tinputFormat="dd/mm/yyyy"	allowedFormatChars="/" \n';
+                        validatorsFlex += '\ttriggerEvent=""/>\n';
+                    } else if (campov.indexOf("double") != -1) {
+                        validatorsFlex += '\t<mx:NumberValidator source="{textInput' + nomev + '}" property="text" \n';
+                        validatorsFlex += '\trequired="{(textInput' + nomev + '.parent as FormItem).required}" \n';
+                        validatorsFlex += '\tminValue="1" domain="real"\n';
+                        validatorsFlex += '\ttriggerEvent=""/>\n';
+                    } else if (campov.indexOf("int") != -1) {
+                        validatorsFlex += '\t<mx:NumberValidator source="{textInput' + nomev + '}" property="text" \n';
+                        validatorsFlex += '\trequired="{(textInput' + nomev + '.parent as FormItem).required}" \n';
+                        validatorsFlex += '\tminValue="1" maxValue="' + (Math.pow(10, Number(tamanhov)) - 1).toString() + '" domain="int"\n';
+                        validatorsFlex += '\ttriggerEvent=""/>\n';
+                    }
+                }
+                validatorsFlex += '</fx:Array>';
+                textAreaValidatorsFlex.text = validatorsFlex;
+            } else if (view.id == "viewFilterFlex") {
+                var tabelaF:String = dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database].slice(3, dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database].length);
+                var filterFlex:String = '<components:FilterDataGrid id="filtro' + ucfirst(tabelaF) + '" dataProvider="{' + tabelaF + '}" ';
+                filterFlex += 'fields="{getDataFieldsDataGrid(dataGrid' + ucfirst(tabelaF) + ')}" keyUp="filtro' + ucfirst(tabelaF) + '_keyUpHandler(event)"/>';
+                textAreaFilterFlex.text = filterFlex;
+            } else if (view.id == "viewExportFlex") {
+                var tabelaE:String = dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database].slice(3, dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database].length);
+                var exportFlex:String = '<components:ExportDataGrid id="exportar' + ucfirst(tabelaE) + '" dataProvider="{' + tabelaE + '}" ';
+                exportFlex += 'table="' + ucfirst(tabelaE) + '" ';
+                exportFlex += 'fields="{getDataFieldsDataGrid(dataGrid' + ucfirst(tabelaE) + ')}" ';
+                exportFlex += 'headers="{getHeaderTextDataGrid(dataGrid' + ucfirst(tabelaE) + ')}" ';
+                textAreaExportFlex.text = exportFlex;
+            }
+        }
+
+        private function ucfirst(text:String):String {
+            return text.slice(0, 1).toUpperCase() + text.slice(1, text.length).toLowerCase();
+        }
+
+        private function ucwords(text:String):String {
+            var texts:Array = text.split(' ');
+            var finalText:String = '', inicial:String, restante:String;
+            for (var i:int = 0; i < texts.length; i++) {
+                if (i)
+                    finalText += ' ';
+                inicial = texts[i].slice(0, 1);
+                restante = texts[i].slice(1, texts[i].length);
+                finalText += inicial.toUpperCase() + restante.toLowerCase();
+            }
+            return finalText;
+        }
+
+        private function tipoCampo(tipo:String):String {
+            var typeField:Array = tipo.split('(');
+            var result:String;
+            if (typeField[0] == "int") {
+                result = "int";
+            } else if (typeField[0] == "char" || typeField[0] == "varchar" || typeField[0] == "text" || typeField[0] == "longtext" || typeField[0] == "set") {
+                result = "String";
+            } else if (typeField[0] == "datetime" || typeField[0] == "date" || typeField[0] == "time") {
+                result = "*";
+            } else if (typeField[0] == "double" || typeField[0] == "float") {
+                result = "Number=0";
+            }
+            return(result);
+        }
+
+        protected function buttonCopyVoAS_clickHandler(event:MouseEvent):void {
+            System.setClipboard(textAreaVoAS.text);
+            Alert.show("O código do VO em ActionScript foi copiado para a área de transferência !!!", "AVISO");
+        }
+
+        protected function buttonSaveAsVoAS_clickHandler(event:MouseEvent):void {
+            fr.save(textAreaVoAS.text, dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + ".as");
+        }
+
+        protected function buttonSaveVoAS_clickHandler():void {
+            typeSaveConfime = "vo_as";
+            pathFile = textInputFlexPath.text;
+            pathFile += textInputVoAsPath.text;
+            pathFile += dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + ".as";
+            remote.existeArquivo(pathFile);
+        }
+
+        private function closeHandlerVoAS(event:CloseEvent):void {
+            if (event.detail == Alert.YES)
+                saveVoAS();
+        }
+
+        protected function saveVoAS():void {
+            pathFile = textInputFlexPath.text;
+            pathFile += textInputVoAsPath.text;
+            pathFile += dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + ".as";
+            remote.salvarArquivo(pathFile, textAreaVoAS.text);
+        }
+
+        protected function buttonCopyVoPHP_clickHandler(event:MouseEvent):void {
+            System.setClipboard(textAreaVoPHP.text);
+            Alert.show("O código do VO em PHP foi copiado para a área de transferência !!!", "AVISO");
+        }
+
+        protected function buttonSaveAsVoPHP_clickHandler(event:MouseEvent):void {
+            fr.save(textAreaVoPHP.text, dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + ".php");
+        }
+
+        protected function buttonSaveVoPHP_clickHandler():void {
+            typeSaveConfime = "vo_php";
+            pathFile = textInputFlexPath.text;
+            pathFile += textInputVoPhpPath.text;
+            pathFile += dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + ".php";
+            remote.existeArquivo(pathFile);
+        }
+
+        private function closeHandlerVoPHP(event:CloseEvent):void {
+            if (event.detail == Alert.YES)
+                saveVoPHP();
+        }
+
+        protected function saveVoPHP():void {
+            pathFile = textInputFlexPath.text;
+            pathFile += textInputVoPhpPath.text;
+            pathFile += dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + ".php";
+            remote.salvarArquivo(pathFile, textAreaVoPHP.text);
+        }
+
+        protected function buttonCopyCRUDPHP_clickHandler(event:MouseEvent):void {
+            System.setClipboard(textAreaCRUDPHP.text);
+            Alert.show("O código do CRUD em PHP foi copiado para a área de transferência !!!", "AVISO");
+        }
+
+        protected function buttonSaveAsCRUDPHP_clickHandler(event:MouseEvent):void {
+            fr.save(textAreaCRUDPHP.text, dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + textInputSufixoClasses.text + ".php");
+        }
+
+        protected function buttonSaveCRUDPHP_clickHandler():void {
+            typeSaveConfime = "crud_php";
+            pathFile = textInputFlexPath.text;
+            pathFile += textInputCrudPath.text;
+            pathFile += dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + textInputSufixoClasses.text + ".php";
+            remote.existeArquivo(pathFile);
+        }
+
+        private function closeHandlerCRUDPHP(event:CloseEvent):void {
+            if (event.detail == Alert.YES)
+                saveCRUDPHP();
+        }
+
+        protected function saveCRUDPHP():void {
+            pathFile = textInputFlexPath.text;
+            pathFile += textInputCrudPath.text;
+            pathFile += dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + textInputSufixoClasses.text + ".php";
+            remote.salvarArquivo(pathFile, textAreaCRUDPHP.text);
+        }
+
+        protected function buttonCopyCRUDITEMPHP_clickHandler(event:MouseEvent):void {
+            System.setClipboard(textAreaCRUDPHP.text);
+            Alert.show("O código do CRUD por item em PHP foi copiado para a área de transferência !!!", "AVISO");
+        }
+
+        protected function buttonSaveAsCRUDITEMPHP_clickHandler(event:MouseEvent):void {
+            fr.save(textAreaCRUDITEMPHP.text, dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + textInputSufixoClasses.text + ".php");
+        }
+
+        protected function buttonSaveCRUDITEMPHP_clickHandler():void {
+            typeSaveConfime = "cruditem_php";
+            pathFile = textInputFlexPath.text;
+            pathFile += textInputCrudPath.text;
+            pathFile += dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + textInputSufixoClasses.text + ".php";
+            remote.existeArquivo(pathFile);
+        }
+
+        private function closeHandlerCRUDITEMPHP(event:CloseEvent):void {
+            if (event.detail == Alert.YES)
+                saveCRUDITEMPHP();
+        }
+
+        protected function saveCRUDITEMPHP():void {
+            pathFile = textInputFlexPath.text;
+            pathFile += textInputCrudPath.text;
+            pathFile += dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + textInputSufixoClasses.text + ".php";
+            remote.salvarArquivo(pathFile, textAreaCRUDITEMPHP.text);
+        }
+
+        protected function buttonCopyCRUDPGPHP_clickHandler(event:MouseEvent):void {
+            System.setClipboard(textAreaCRUDPHP.text);
+            Alert.show("O código do CRUD em PHP (PG) foi copiado para a área de transferência !!!", "AVISO");
+        }
+
+        protected function buttonSaveAsCRUDPGPHP_clickHandler(event:MouseEvent):void {
+            fr.save(textAreaCRUDPGPHP.text, dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + textInputSufixoClasses.text + ".php");
+        }
+
+        protected function buttonSaveCRUDPGPHP_clickHandler():void {
+            typeSaveConfime = "crudpg_php";
+            pathFile = textInputFlexPath.text;
+            pathFile += textInputCrudPath.text;
+            pathFile += dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + textInputSufixoClasses.text + ".php";
+            remote.existeArquivo(pathFile);
+        }
+
+        private function closeHandlerCRUDPGPHP(event:CloseEvent):void {
+            if (event.detail == Alert.YES)
+                saveCRUDPGPHP();
+        }
+
+        protected function saveCRUDPGPHP():void {
+            pathFile = textInputFlexPath.text;
+            pathFile += textInputCrudPath.text;
+            pathFile += dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + textInputSufixoClasses.text + ".php";
+            remote.salvarArquivo(pathFile, textAreaCRUDPGPHP.text);
+        }
+
+        protected function buttonExportar_clickHandler(event:MouseEvent):void {
+            Alert.show("Esta função está desabilitada", "AVISO");
+
+            /*if (dropDownListBancos.selectedItem.Database != null) {
+                var dt:Date = new Date();
+                var strData:String = dt.fullYear.toString();
+                if ((dt.month + 1) < 10)
+                    strData += "-0" + (dt.month + 1);
+                else
+                    strData += "-" + (dt.month + 1);
+                if (dt.date < 10)
+                    strData += "-0" + dt.date;
+                else
+                    strData += "-" + dt.date;
+                var xmlExp:String = '<?xml version="1.0" encoding="ISO-8859-1"?>\n';
+                xmlExp += '<conf>\n';
+                xmlExp += '<conexao>\n';
+                xmlExp += '\t<file>' + textInputConexao.text + '</file>\n';
+                xmlExp += '\t<as_package>' + textInputPacote.text + '</as_package>\n';
+                xmlExp += '\t<alias>' + textInputAlias.text + '</alias>\n';
+                xmlExp += '\t<server>' + textInputServidor.text + '</server>\n';
+                xmlExp += '\t<port>' + textInputPorta.text + '</port>\n';
+                xmlExp += '\t<user>' + textInputUsuario.text + '</user>\n';
+                xmlExp += '\t<password>' + textInputSenha.text + '</password>\n';
+                xmlExp += '\t<database>' + dropDownListBancos.selectedItem.Database + '</database>\n';
+                xmlExp += '\t<flex_name>' + textInputFlexName.text + '</flex_name>\n';
+                xmlExp += '\t<flex_path>' + textInputFlexPath.text + '</flex_path>\n';
+                xmlExp += '\t<voas_path>' + textInputVoAsPath.text + '</voas_path>\n';
+                xmlExp += '\t<tips_path>' + textInputTipsPath.text + '</tips_path>\n';
+                xmlExp += '\t<about_path>' + textInputAboutPath.text + '</about_path>\n';
+                xmlExp += '\t<vophp_path>' + textInputVoPhpPath.text + '</vophp_path>\n';
+                xmlExp += '\t<crud_path>' + textInputCrudPath.text + '</crud_path>\n';
+                xmlExp += '\t<view_path>' + textInputViewPath.text + '</view_path>\n';
+                xmlExp += '\t<sufixo_classes>' + textInputSufixoClasses.text + '</sufixo_classes>\n';
+                xmlExp += '\t<sufixo_funcoes>' + checkBoxSufixoFuncoes.selected + '</sufixo_funcoes>\n';
+                xmlExp += '\t<save>' + checkBoxSalvar.selected + '</save>\n';
+                xmlExp += '</conexao>\n';
+                xmlExp += '</conf>';
+                fs.save(xmlExp, "FlexPHPBDtoVO_" + textInputFlexName.text + "_" + strData + "_Conf.xml");
+            } else
+                Alert.show("ERRO: selecione o banco de dados para exportar.", "ERRO");*/
+        }
+
+        protected function buttonImportar_clickHandler(event:MouseEvent):void {
+            fo.browse([myFilter]);
+            fo.addEventListener(Event.SELECT, onFileSelect);
+            fo.addEventListener(Event.COMPLETE, onFileComplete);
+        }
+
+        private function onFileSelect(event:Event):void {
+            fo.load();
+        }
+
+        private function onFileComplete(event:Event):void {
+            confXML = XML(fo.data.readUTFBytes(fo.data.length));
+            textInputConexao.text = confXML.conexao[0].file;
+            textInputPacote.text = confXML.conexao[0].as_package;
+            textInputAlias.text = confXML.conexao[0].alias;
+            textInputServidor.text = confXML.conexao[0].server;
+            textInputPorta.text = confXML.conexao[0].port;
+            textInputUsuario.text = confXML.conexao[0].user;
+            textInputSenha.text = confXML.conexao[0].password;
+            textInputFlexName.text = confXML.conexao[0].flex_name;
+            textInputFlexPath.text = confXML.conexao[0].flex_path;
+            textInputVoAsPath.text = confXML.conexao[0].voas_path;
+            textInputTipsPath.text = confXML.conexao[0].tips_path;
+            textInputAboutPath.text = confXML.conexao[0].about_path;
+            textInputVoPhpPath.text = confXML.conexao[0].vophp_path;
+            textInputCrudPath.text = confXML.conexao[0].crud_path;
+            textInputViewPath.text = confXML.conexao[0].view_path;
+            textInputSufixoClasses.text = confXML.conexao[0].sufixo_classes;
+            checkBoxSufixoFuncoes.selected = confXML.conexao[0].sufixo_funcoes;
+            checkBoxSalvar.selected = confXML.conexao[0].save;
+            Alert.show("As configurações foram importadas com sucesso !!!", "AVISO");
+        }
+
+        protected function buttonExportCSV_clickHandler(event:MouseEvent):void {
+            var csvExp:String = "Campo,Tipo,Padrão,Extra,Nulo,Collation,Comentário\n";
+            for (var i:int = 0; i < campos.length; i++) {
+                csvExp += campos.getItemAt(i).Field + ',';
+                csvExp += campos.getItemAt(i).Type + ',';
+                csvExp += campos.getItemAt(i).Default + ',';
+                csvExp += campos.getItemAt(i).Extra + ',';
+                csvExp += campos.getItemAt(i).Null + ',';
+                csvExp += campos.getItemAt(i).Collation + ',';
+                csvExp += campos.getItemAt(i).Comment + '\n';
+            }
+            fs.save(csvExp, "FlexPHPBDtoVO_" + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + "_Table.csv");
+        }
+
+        protected function buttonCopyRemoteFlex_clickHandler(event:MouseEvent):void {
+            System.setClipboard(textAreaRemoteFlex.text);
+            Alert.show("O código do Remote em FLEX foi copiado para a área de transferência !!!", "AVISO");
+        }
+
+        protected function buttonSaveRemoteFlex_clickHandler(event:MouseEvent):void {
+            fr.save(textAreaRemoteFlex.text, "FlexPHPBDtoVO_Remote.mxml");
+        }
+
+        protected function buttonCopyFormFlex_clickHandler(event:MouseEvent):void {
+            System.setClipboard(textAreaFormFlex.text);
+            Alert.show("O código do Form em FLEX foi copiado para a área de transferência !!!", "AVISO");
+        }
+
+        protected function buttonSaveFormFlex_clickHandler(event:MouseEvent):void {
+            fr.save(textAreaFormFlex.text, "FlexPHPBDtoVO_Form.mxml");
+        }
+
+        protected function buttonCopyDataGridFlex_clickHandler(event:MouseEvent):void {
+            System.setClipboard(textAreaDataGridFlex.text);
+            Alert.show("O código do DataGrid em FLEX foi copiado para a área de transferência !!!", "AVISO");
+        }
+
+        protected function buttonSaveDataGridFlex_clickHandler(event:MouseEvent):void {
+            fr.save(textAreaDataGridFlex.text, "FlexPHPBDtoVO_Form.mxml");
+        }
+
+        protected function buttonCopyFilterFlex_clickHandler(event:MouseEvent):void {
+            System.setClipboard(textAreaFilterFlex.text);
+            Alert.show("O código do Filtrar em FLEX foi copiado para a área de transferência !!!", "AVISO");
+
+        }
+
+        protected function buttonSaveFilterFlex_clickHandler(event:MouseEvent):void {
+            fr.save(textAreaFilterFlex.text, "FlexPHPBDtoVO_Filter.mxml");
+
+        }
+
+        protected function buttonCopyExportFlex_clickHandler(event:MouseEvent):void {
+            System.setClipboard(textAreaExportFlex.text);
+            Alert.show("O código do Exportar em FLEX foi copiado para a área de transferência !!!", "AVISO");
+
+        }
+
+        protected function buttonSaveExportFlex_clickHandler(event:MouseEvent):void {
+            fr.save(textAreaExportFlex.text, "FlexPHPBDtoVO_Export.mxml");
+
+        }
+
+        protected function buttonSaveValidatorsFlex_clickHandler(event:MouseEvent):void {
+            fr.save(textAreaValidatorsFlex.text, "FlexPHPBDtoVO_Validators.mxml");
+
+        }
+
+        protected function buttonCopyValidatorsFlex_clickHandler(event:MouseEvent):void {
+            System.setClipboard(textAreaValidatorsFlex.text);
+            Alert.show("O código dos validators em FLEX foi copiado para a área de transferência !!!", "AVISO");
+
+        }
+
+        protected function buttonCopyTipsAS_clickHandler(event:MouseEvent):void {
+            System.setClipboard(textAreaTipsAS.text);
+            Alert.show("O código do TIPS em ActionScript foi copiado para a área de transferência !!!", "AVISO");
+        }
+
+        protected function buttonSaveAsTipsAS_clickHandler(event:MouseEvent):void {
+            fr.save(textAreaTipsAS.text, "tips_" + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + ".as");
+        }
+
+        protected function buttonSaveTipsAS_clickHandler():void {
+            typeSaveConfime = "tips_as";
+            pathFile = textInputFlexPath.text;
+            pathFile += textInputTipsPath.text;
+            pathFile += "tips_" + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + ".as";
+            remote.existeArquivo(pathFile);
+        }
+
+        private function closeHandlerTipsAS(event:CloseEvent):void {
+            if (event.detail == Alert.YES)
+                saveTipsAS();
+        }
+
+        protected function saveTipsAS():void {
+            pathFile = textInputFlexPath.text;
+            pathFile += textInputTipsPath.text;
+            pathFile += "tips_" + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + ".as";
+            remote.salvarArquivo(pathFile, textAreaTipsAS.text);
+        }
+
+        protected function buttonCopyAboutAS_clickHandler(event:MouseEvent):void {
+            System.setClipboard(textAreaAboutAS.text);
+            Alert.show("O código do About em ActionScript foi copiado para a área de transferência !!!", "AVISO");
+        }
+
+        protected function buttonSaveAsAboutAS_clickHandler(event:MouseEvent):void {
+            fr.save(textAreaAboutAS.text, "about_" + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + ".as");
+        }
+
+        protected function buttonSaveAboutAS_clickHandler():void {
+            typeSaveConfime = "about_as";
+            pathFile = textInputFlexPath.text;
+            pathFile += textInputAboutPath.text;
+            pathFile += "about_" + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + ".as";
+            remote.existeArquivo(pathFile);
+        }
+
+        private function closeHandlerAboutAS(event:CloseEvent):void {
+            if (event.detail == Alert.YES)
+                saveAboutAS();
+        }
+
+        protected function saveAboutAS():void {
+            pathFile = textInputFlexPath.text;
+            pathFile += textInputAboutPath.text;
+            pathFile += "about_" + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + ".as";
+            remote.salvarArquivo(pathFile, textAreaAboutAS.text);
+        }
+
+        protected function salvarArquivo_resultHandler(event:ResultEvent):void {
+            Alert.show("O arquivo '" + event.result + "' foi salvo com sucesso !!!", "AVISO");
+        }
+
+        protected function existeArquivo_resultHandler(event:ResultEvent):void {
+            var result:Boolean = event.result as Boolean;
+            if (!isCheckFileOnly) {
+                if (typeSaveConfime == "vo_as") {
+                    if (result)
+                        Alert.show("O arquivo '" + pathFile + "' já existe, você confirma a sobrescrição ?", "CONFIRMAÇÃO", Alert.NO | Alert.YES, null, closeHandlerVoAS, null, Alert.NO);
+                    else
+                        saveVoAS();
+                } else if (typeSaveConfime == "tips_as") {
+                    if (result)
+                        Alert.show("O arquivo '" + pathFile + "' já existe, você confirma a sobrescrição ?", "CONFIRMAÇÃO", Alert.NO | Alert.YES, null, closeHandlerTipsAS, null, Alert.NO);
+                    else
+                        saveTipsAS();
+                } else if (typeSaveConfime == "about_as") {
+                    if (result)
+                        Alert.show("O arquivo '" + pathFile + "' já existe, você confirma a sobrescrição ?", "CONFIRMAÇÃO", Alert.NO | Alert.YES, null, closeHandlerAboutAS, null, Alert.NO);
+                    else
+                        saveAboutAS();
+                } else if (typeSaveConfime == "vo_php") {
+                    if (result)
+                        Alert.show("O arquivo '" + pathFile + "' já existe, você confirma a sobrescrição ?", "CONFIRMAÇÃO", Alert.NO | Alert.YES, null, closeHandlerVoPHP, null, Alert.NO);
+                    else
+                        saveVoPHP();
+                } else if (typeSaveConfime == "crud_php") {
+                    if (result)
+                        Alert.show("O arquivo '" + pathFile + "' já existe, você confirma a sobrescrição ?", "CONFIRMAÇÃO", Alert.NO | Alert.YES, null, closeHandlerCRUDPHP, null, Alert.NO);
+                    else
+                        saveCRUDPHP();
+                } else if (typeSaveConfime == "cruditem_php") {
+                    if (result)
+                        Alert.show("O arquivo '" + pathFile + "' já existe, você confirma a sobrescrição ?", "CONFIRMAÇÃO", Alert.NO | Alert.YES, null, closeHandlerCRUDITEMPHP, null, Alert.NO);
+                    else
+                        saveCRUDITEMPHP();
+                } else if (typeSaveConfime == "crudpg_php") {
+                    if (result)
+                        Alert.show("O arquivo '" + pathFile + "' já existe, você confirma a sobrescrição ?", "CONFIRMAÇÃO", Alert.NO | Alert.YES, null, closeHandlerCRUDPGPHP, null, Alert.NO);
+                    else
+                        saveCRUDPGPHP();
+                } else if (typeSaveConfime == "component_mxml") {
+                    if (result)
+                        Alert.show("O arquivo '" + pathFile + "' já existe, você confirma a sobrescrição ?", "CONFIRMAÇÃO", Alert.NO | Alert.YES, null, closeHandlerMXMLFlex, null, Alert.NO);
+                    else
+                        saveMXMLFlex();
+                }
+            } else {
+                isCheckFileOnly = false;
+                if (typeSaveConfime == "vo_as") {
+                    buttonOpenVoAS.enabled = result;
+                    buttonEditVoAS.enabled = result;
+                } else if (typeSaveConfime == "tips_as") {
+                    buttonOpenTipsAS.enabled = result;
+                    buttonEditTipsAs.enabled = result;
+                } else if (typeSaveConfime == "about_as") {
+                    buttonOpenAboutAS.enabled = result;
+                    buttonEditAboutAs.enabled = result;
+                } else if (typeSaveConfime == "vo_php") {
+                    buttonOpenVoPHP.enabled = result;
+                    buttonEditVoPHP.enabled = result;
+                } else if (typeSaveConfime == "crud_php") {
+                    buttonOpenCRUDPHP.enabled = result;
+                    buttonEditCRUDPHP.enabled = result;
+                } else if (typeSaveConfime == "cruditem_php") {
+                    buttonOpenCRUDITEMPHP.enabled = result;
+                    buttonEditCRUDITEMPHP.enabled = result;
+                } else if (typeSaveConfime == "crudpg_php") {
+                    buttonOpenCRUDPGPHP.enabled = result;
+                    buttonEditCRUDPGPHP.enabled = result;
+                } else if (typeSaveConfime == "component_mxml") {
+                    buttonOpenMXMLFlex.enabled = result;
+                    buttonEditMXMLFlex.enabled = result;
+                }
+            }
+        }
+
+        private function checkFile(type:String):void {
+            isCheckFileOnly = true;
+            if (type == "vo_as") {
+                buttonSaveVoAS_clickHandler();
+            } else if (type == "tips_as") {
+                buttonSaveTipsAS_clickHandler();
+            } else if (type == "about_as") {
+                buttonSaveAboutAS_clickHandler();
+            } else if (type == "vo_php") {
+                buttonSaveVoPHP_clickHandler();
+            } else if (type == "crud_php") {
+                buttonSaveCRUDPHP_clickHandler();
+            } else if (type == "cruditem_php") {
+                buttonSaveCRUDITEMPHP_clickHandler();
+            } else if (type == "crudpg_php") {
+                buttonSaveCRUDPGPHP_clickHandler();
+            } else if (type == "component_mxml") {
+                buttonSaveMXMLFlex_clickHandler();
+            }
+        }
+
+        private function getFile(type:String, edit:Boolean = false):void {
+            if (type == "vo_as") {
+                pathFile = textInputFlexPath.text;
+                pathFile += textInputVoAsPath.text;
+                pathFile += dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + ".as";
+            } else if (type == "tips_as") {
+                pathFile = textInputFlexPath.text;
+                pathFile += textInputTipsPath.text;
+                pathFile += "tips_" + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + ".as";
+            } else if (type == "about_as") {
+                pathFile = textInputFlexPath.text;
+                pathFile += textInputAboutPath.text;
+                pathFile += "about_" + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + ".as";
+            } else if (type == "vo_php") {
+                pathFile = textInputFlexPath.text;
+                pathFile += textInputVoPhpPath.text;
+                pathFile += dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + ".php";
+            } else if (type == "crud_php") {
+                pathFile = textInputFlexPath.text;
+                pathFile += textInputCrudPath.text;
+                pathFile += dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + textInputSufixoClasses.text + ".php";
+            } else if (type == "cruditem_php") {
+                pathFile = textInputFlexPath.text;
+                pathFile += textInputCrudPath.text;
+                pathFile += dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + textInputSufixoClasses.text + ".php";
+            } else if (type == "crudpg_php") {
+                pathFile = textInputFlexPath.text;
+                pathFile += textInputCrudPath.text;
+                pathFile += dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + textInputSufixoClasses.text + ".php";
+            } else if (type == "component_mxml") {
+                var tab:String = dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database];
+                pathFile = textInputFlexPath.text;
+                pathFile += textInputViewPath.text;
+                pathFile += ucfirst(tab.slice(3, tab.length)) + ".mxml";
+            }
+            isEdit = edit;
+            remote.conteudoArquivo(pathFile);
+        }
+
+        private function conteudoArquivo_resultHandler(event:ResultEvent):void {
+            var view:ViewFile = new ViewFile;
+            PopUpManager.addPopUp(view, this, true);
+            PopUpManager.centerPopUp(view);
+            var result:Array = event.result as Array;
+            view.isEdit = isEdit;
+            view.conteudo = result[0];
+            view.arquivo = result[1];
+            view.lastmod = result[2];
+        }
+
+        private function metodosArquivo_resultHandler(event:ResultEvent):void {
+            var result:Array = event.result as Array;
+            var tab:String = ucfirst(dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database].slice(3, dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database].length));
+            var remoteAs:String = "";
+            remoteAs += '<s:RemoteObject endpoint="amf/index.php" \n';
+            remoteAs += '				 id="remote' + tab + '" \n';
+            remoteAs += '				 source="' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + textInputSufixoClasses.text + '" \n';
+            remoteAs += '				 destination="' + dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database] + textInputSufixoClasses.text + '"\n';
+            remoteAs += '				 showBusyCursor="true"\n';
+            remoteAs += '				 fault="remote_faultHandler(event)">\n';
+            for (var j:int = 0; j < result.length; j++)
+                remoteAs += '\t<s:method name="' + result[j] + '" result="' + result[j] + '_resultHandler(event)"/>\n';
+            remoteAs += '</s:RemoteObject>\n';
+            textAreaRemoteFlex.text = remoteAs;
+        }
+
+        protected function buttonCopyMXMLFlex_clickHandler(event:MouseEvent):void {
+            System.setClipboard(textAreaMXMLFlex.text);
+            Alert.show("O código do Componente em MXML foi copiado para a área de transferência !!!", "AVISO");
+        }
+
+        protected function buttonSaveMXMLFlex_clickHandler():void {
+            typeSaveConfime = "component_mxml";
+            var tab:String = dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database];
+            pathFile = textInputFlexPath.text;
+            pathFile += textInputViewPath.text;
+            pathFile += ucfirst(tab.slice(3, tab.length)) + ".mxml";
+            remote.existeArquivo(pathFile);
+        }
+
+        private function closeHandlerMXMLFlex(event:CloseEvent):void {
+            if (event.detail == Alert.YES)
+                saveMXMLFlex();
+        }
+
+        protected function saveMXMLFlex():void {
+            var tab:String = dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database];
+            pathFile = textInputFlexPath.text;
+            pathFile += textInputViewPath.text;
+            pathFile += ucfirst(tab.slice(3, tab.length)) + ".mxml";
+            remote.salvarArquivo(pathFile, textAreaMXMLFlex.text);
+        }
+
+        protected function buttonSaveAsMXMLFlex_clickHandler(event:MouseEvent):void {
+            var tab:String = dropDownListTabelas.selectedItem['Tables_in_' + dropDownListBancos.selectedItem.Database];
+            fr.save(textAreaMXMLFlex.text, ucfirst(tab.slice(3, tab.length)) + ".mxml");
+        }
+
+        private function slashCheck(textInput:TextInput):void {
+            var slash:String = textInput.text.substr(textInput.text.length - 1, 1);
+            if (slash != "\\")
+                textInput.text += "\\";
+        }
+
+        protected function imageAbout_clickHandler(event:MouseEvent):void {
+            var sobre:about = new about();
+            sobre.titulo = titulo;
+            sobre.versao = versao;
+            sobre.descricao = descricao;
+            PopUpManager.addPopUp(sobre, this, true);
+            PopUpManager.centerPopUp(sobre);
+        }
+        ]]>
+	</fx:Script>
+
+	<fx:Declarations>
+		<s:RemoteObject endpoint="amf/index.php" 
+						id="remote" 
+						source="PHPBDService" 
+						destination="PHPBDService"
+						showBusyCursor="true"
+						fault="remote_faultHandler(event)">
+			<s:method name="openConexao" result="openConexao_resultHandler(event)"/>
+			<s:method name="listarBancoDados" result="listarBancoDados_resultHandler(event)"/>
+			<s:method name="listarTabelas" result="listarTabelas_resultHandler(event)"/>
+			<s:method name="listarCampos" result="listarCampos_resultHandler(event)"/>
+			<s:method name="listarComentarioTabela" result="listarComentarioTabela_resultHandler(event)"/>
+			<s:method name="salvarArquivo" result="salvarArquivo_resultHandler(event)"/>
+			<s:method name="existeArquivo" result="existeArquivo_resultHandler(event)"/>
+			<s:method name="conteudoArquivo" result="conteudoArquivo_resultHandler(event)"/>
+			<s:method name="metodosArquivo" result="metodosArquivo_resultHandler(event)"/>
+		</s:RemoteObject>
+	</fx:Declarations>
+	<mx:VBox width="100%" height="100%" paddingBottom="10" paddingLeft="10" paddingRight="10" paddingTop="10" horizontalAlign="center">
+        <mx:HBox width="100%" verticalAlign="middle" horizontalAlign="center" height="80">
+            <s:Image id="imageLogo" source="@Embed(source='assets/icon_048.png')"/>
+            <mx:VBox>
+                <mx:HBox>
+                    <s:Label text="{titulo} {versao}" fontSize="18"/>
+                    <mx:Image source="@Embed(source='assets/info-icon.png')" buttonMode="true"
+                              toolTip="Saiba mais sobre o FlexMySQLSync." click="imageAbout_clickHandler(event)"/>
+                </mx:HBox>
+                <s:Label text="{descricao}" fontSize="12" />
+            </mx:VBox>
+        </mx:HBox>
+        <mx:HRule width="100%"/>
+		<s:HGroup width="100%" height="100%">
+			<s:VGroup width="100%" height="100%">
+				<mx:Form width="100%" height="100%">
+					<mx:FormItem label="Arquivo de Conexão com o Banco de Dados(PHP):">
+						<mx:HBox>
+							<s:TextInput id="textInputConexao" width="400" text="ErpConexaoService" editable="false"/>
+							<components:ButtonInfo toolTip="Arquivo que realiza a conexão com o banco de dados. Ex.: ConexaoService (Clique para inserir o exemplo)." 
+												   click="{textInputConexao.text = 'ConexaoService'}"
+												   enabled="{textInputConexao.enabled}"/>
+						</mx:HBox>
+					</mx:FormItem>
+					<mx:FormItem label="Package(AS):">
+						<mx:HBox>
+							<s:TextInput id="textInputPacote" width="400" text="model.vo" editable="false"/>
+							<components:ButtonInfo toolTip="Pacote onde está os VOs do actionscript. Ex.: model.vo (Clique para inserir o exemplo)." 
+												   click="{textInputPacote.text = 'model.vo'}"
+												   enabled="{textInputPacote.enabled}"/>
+						</mx:HBox>
+					</mx:FormItem>
+					<mx:FormItem label="Alias(AS)/explicitType(PHP):">
+						<mx:HBox>
+							<s:TextInput id="textInputAlias" width="400" text="vo" editable="false"/>
+							<components:ButtonInfo toolTip="Alias do VO do actionscript para o PHP. Ex.: vo (Clique para inserir o exemplo)." 
+												   click="{textInputAlias.text = 'vo'}"
+												   enabled="{textInputAlias.enabled}"/>
+						</mx:HBox>
+					</mx:FormItem>
+					<mx:FormItem label="Servidor:">
+						<mx:HBox>
+							<s:TextInput id="textInputServidor" width="400" text="localhost" editable="false"/>
+							<components:ButtonInfo toolTip="Endereço do servidor MySQL. Ex.: localhost (Clique para inserir o exemplo)." 
+												   click="{textInputServidor.text = 'localhost'}"
+												   enabled="{textInputServidor.enabled}"/>
+						</mx:HBox>
+					</mx:FormItem>
+					<mx:FormItem label="Porta:">
+						<mx:HBox>
+							<s:TextInput id="textInputPorta" widthInChars="4" restrict="0-9" text="3306" editable="false"/>
+							<components:ButtonInfo toolTip="Porta do servidor MySQL. Ex.: 3306 (Clique para inserir o exemplo)." 
+												   click="{textInputPorta.text = '3306'}"
+												   enabled="{textInputPorta.enabled}"/>
+						</mx:HBox>
+					</mx:FormItem>
+					<mx:FormItem label="Usuário do Banco de Dados:">
+						<mx:HBox>
+							<s:TextInput id="textInputUsuario" width="250" text="iautomat_apps" editable="false"/>
+							<components:ButtonInfo toolTip="Usuário do servidor MySQL. Ex.: root (Clique para inserir o exemplo)." 
+												   click="{textInputUsuario.text = 'root'}"
+												   enabled="{textInputUsuario.enabled}"/>
+						</mx:HBox>
+					</mx:FormItem>
+					<mx:FormItem label="Senha do Banco de Dados:">
+						<mx:HBox>
+							<s:TextInput id="textInputSenha" width="250" text="DHTBy5F#H&amp;b9sP6=" editable="false" displayAsPassword="true"/>
+							<components:ButtonInfo toolTip="Senha do servidor MySQL. Ex.: root (Clique para inserir o exemplo)." 
+												   click="{textInputSenha.text = 'root'}"
+												   enabled="{textInputSenha.enabled}"/>
+						</mx:HBox>
+					</mx:FormItem>
+					<mx:FormItem label="Salvar ?">
+						<mx:HBox>
+							<s:CheckBox id="checkBoxSalvar"/>
+							<components:ButtonInfo toolTip="Salvar os dados de acesso em um cookie." 
+												   enabled="{checkBoxSalvar.enabled}"/>
+						</mx:HBox>
+					</mx:FormItem>
+					<mx:FormItem id="itemBancosDados" label="Bancos de Dados:" visible="false">
+						<mx:HBox>
+							<s:DropDownList id="dropDownListBancos" width="250" height="27"
+											change="buttonListarTabelas_clickHandler()"
+											dataProvider="{bancosDados}" labelField="Database"/>
+							<s:Button id="buttonListarBanco" icon="@Embed(source='assets/agt_reload-024.png')"
+									  label="Atualizar" click="buttonListarTabelas_clickHandler()"
+									  toolTip="Atualiza as tabelas do banco de dados selecionado."/>					
+						</mx:HBox>
+					</mx:FormItem>
+					<mx:FormItem id="itemTabelas" label="Tabelas:" visible="false">
+						<mx:HBox>
+							<s:DropDownList id="dropDownListTabelas" width="250" height="27"
+											change="buttonListarCampos_clickHandler()"
+											dataProvider="{tabelas}" 
+											labelField="{'Tables_in_'+dropDownListBancos.selectedItem.Database}"/>
+							<s:Button id="buttonListarTabelas" icon="@Embed(source='assets/agt_reload-024.png')"
+									  label="Atualizar" click="buttonListarCampos_clickHandler()"
+									  toolTip="Atualiza os campos da tabela selecionada."/>					
+						</mx:HBox>
+					</mx:FormItem>
+				</mx:Form>
+			</s:VGroup>
+			<s:VGroup width="100%" height="100%" id="hgroupConf">
+				<mx:Form width="100%" height="100%">
+					<mx:FormItem label="Flex Project Name:">
+						<mx:HBox>
+							<s:TextInput id="textInputFlexName" width="400" text="FlexProjectTest" editable="false"/>
+							<components:ButtonInfo toolTip="Nome do projeto." 
+												   enabled="{textInputFlexName.enabled}"/>
+						</mx:HBox>
+					</mx:FormItem>
+					<mx:FormItem label="Flex Project Path (SRC):">
+						<mx:HBox>
+							<s:TextInput id="textInputFlexPath" width="400" focusOut="slashCheck(textInputFlexPath)" text="flexprojecttest\" editable="false"/>
+							<components:ButtonInfo toolTip="{'Caminho do projeto em Flex. Ex.: c:\\workspaces\\Flex\\' + textInputFlexName.text + '\\src\\ (Clique para inserir o exemplo).'}" 
+												   click="{textInputFlexPath.text = 'c:\\workspaces\\Flex\\'+textInputFlexName.text+'\\src\\'}"
+												   enabled="{textInputFlexPath.enabled}"/>
+						</mx:HBox>
+					</mx:FormItem>
+					<mx:FormItem label="VO Path(AS):">
+						<mx:HBox>
+							<s:TextInput id="textInputVoAsPath" width="400" focusOut="slashCheck(textInputVoAsPath)" text="model\vo\" editable="false"/>
+							<components:ButtonInfo toolTip="Caminho dos VOs em actionscript. Ex.: model\vo\ (Clique para inserir o exemplo)." 
+												   click="{textInputVoAsPath.text = 'model\\vo\\'}"
+												   enabled="{textInputVoAsPath.enabled}"/>
+						</mx:HBox>
+					</mx:FormItem>
+					<mx:FormItem label="Tips Path(AS):">
+						<mx:HBox>
+							<s:TextInput id="textInputTipsPath" width="400" focusOut="slashCheck(textInputTipsPath)" text="model\tips\" editable="false"/>
+							<components:ButtonInfo toolTip="Caminho dos Tips em actionscript. Ex.: model\tips\ (Clique para inserir o exemplo)." 
+												   click="{textInputTipsPath.text = 'model\\tips\\'}"
+												   enabled="{textInputTipsPath.enabled}"/>
+						</mx:HBox>
+					</mx:FormItem>
+					<mx:FormItem label="About Path(AS):">
+						<mx:HBox>
+							<s:TextInput id="textInputAboutPath" width="400" focusOut="slashCheck(textInputAboutPath)" text="model\about\" editable="false"/>
+							<components:ButtonInfo toolTip="Caminho dos Abouts em actionscript. Ex.: model\about\ (Clique para inserir o exemplo)." 
+												   click="{textInputAboutPath.text = 'model\\about\\'}"
+												   enabled="{textInputAboutPath.enabled}"/>
+						</mx:HBox>
+					</mx:FormItem>
+					<mx:FormItem label="VO Path(PHP):">
+						<mx:HBox>
+							<s:TextInput id="textInputVoPhpPath" width="400" focusOut="slashCheck(textInputVoPhpPath)" text="php\services\vo\" editable="false"/>
+							<components:ButtonInfo toolTip="Caminho dos VOs em PHP. Ex.: php\services\vo\ (Clique para inserir o exemplo)." 
+												   click="{textInputVoPhpPath.text = 'php\\services\\vo\\'}"
+												   enabled="{textInputVoPhpPath.enabled}"/>
+						</mx:HBox>
+					</mx:FormItem>
+					<mx:FormItem label="CRUD Path:">
+						<mx:HBox>
+							<s:TextInput id="textInputCrudPath" width="400" focusOut="slashCheck(textInputCrudPath)" text="php\services\" editable="false"/>
+							<components:ButtonInfo toolTip="Caminho dos CRUDs em PHP. Ex.: php\services\ (Clique para inserir o exemplo)." 
+												   click="{textInputCrudPath.text = 'php\\services\\'}"
+												   enabled="{textInputCrudPath.enabled}"/>
+						</mx:HBox>
+					</mx:FormItem>
+					<mx:FormItem label="View Path:">
+						<mx:HBox>
+							<s:TextInput id="textInputViewPath" width="400" focusOut="slashCheck(textInputViewPath)" text="view\" editable="false"/>
+							<components:ButtonInfo toolTip="Caminho do View em actionscript. Ex.: view\ (Clique para inserir o exemplo)." 
+												   click="{textInputViewPath.text = 'view\\'}"
+												   enabled="{textInputViewPath.enabled}"/>
+						</mx:HBox>
+					</mx:FormItem>
+					<mx:FormItem label="Sufixo das Classes:">
+						<mx:HBox>
+							<s:TextInput id="textInputSufixoClasses" width="400" text="Service" editable="false"/>
+							<components:ButtonInfo toolTip="Determina se as classes do CRUD terão sufixo. Ex.: tabelaService (Clique para inserir o exemplo)." 
+												   click="{textInputSufixoClasses.text = 'Service'}"
+												   enabled="{textInputSufixoClasses.enabled}"/>
+						</mx:HBox>
+					</mx:FormItem>
+					<mx:FormItem label="Sufixo das Funções:">
+						<mx:HBox>
+							<s:CheckBox id="checkBoxSufixoFuncoes"/>
+							<components:ButtonInfo toolTip="Determina se as funções do CRUD terão sufixo com o nome da tabela." 
+												   enabled="{checkBoxSufixoFuncoes.enabled}"/>
+						</mx:HBox>
+					</mx:FormItem>
+				</mx:Form>
+			</s:VGroup>			
+		</s:HGroup>
+		<s:HGroup width="100%" verticalAlign="middle">
+			<s:Button id="buttonImportar" label="IMPORTAR" icon="@Embed(source='assets/db_update-024.png')" 
+					  enabled="true" click="buttonImportar_clickHandler(event)"
+					  toolTip="Importe as configurações de um sistema."/>
+			<s:Button id="buttonTestar" label="TESTAR" icon="@Embed(source='assets/ok-024.png')"
+					  enabled="true" click="buttonTestar_clickHandler(event)"
+					  toolTip="Teste a conexão com o banco de dados configurado."/>
+			<s:Button id="buttonConectar" label="CONECTAR" icon="@Embed(source='assets/connect_established-024.png')"
+					  enabled="true" click="buttonConectar_clickHandler(event)"
+					  toolTip="Conecte com o banco de dados configurado."/>
+			<s:Button id="buttonExportar" label="EXPORTAR" icon="@Embed(source='assets/db_comit-024.png')"
+					  enabled="false" click="buttonExportar_clickHandler(event)"
+					  toolTip="Exporte as configurações de um sistema."/>
+			<s:CheckBox id="checkBoxComentarios" label="Inserir Ajuda ?"/>
+			<components:ButtonInfo toolTip="Habilita a criação da ajuda no sistema (Tips e About)."/>
+			<mx:Spacer width="100%" height="20"/>
+			<s:Button id="buttonDesconectar" label="DESCONECTAR" icon="@Embed(source='assets/connect_no-024.png')"
+					  enabled="false" click="buttonDesconectar_clickHandler(event)"
+					  toolTip="Desconecta o banco de dados ativo."/>
+		</s:HGroup>
+		<s:ButtonBar id="buttonBarNavegacao" dataProvider="{navegacao}" visible="false"/>
+		<mx:ViewStack id="navegacao" width="100%" height="100%" change="navegacao_changeHandler(event)">
+			<mx:VBox id="viewCampos" width="100%" height="100%" label="CAMPOS" toolTip="Campos da tabela selecionada.">
+				<mx:DataGrid id="dataGridCampos" dataProvider="{campos}" height="100%" width="100%" allowMultipleSelection="true">
+					<mx:columns>
+						<mx:DataGridColumn headerText="Campo" dataField="Field"/>
+						<mx:DataGridColumn headerText="Tipo" dataField="Type"/>
+						<mx:DataGridColumn headerText="Padrão" dataField="Default"/>
+						<mx:DataGridColumn headerText="Extra" dataField="Extra"/>
+						<mx:DataGridColumn headerText="Nulo" dataField="Null"/>
+						<mx:DataGridColumn headerText="Collation" dataField="Collation"/>
+						<mx:DataGridColumn headerText="Comentário" dataField="Comment"/>
+					</mx:columns>
+				</mx:DataGrid>
+				<s:Button id="buttonExportCSV" label="EXPORTAR" icon="@Embed(source='assets/export_text-024.png')"
+						  enabled="false" click="buttonExportCSV_clickHandler(event)"
+						  toolTip="Exportar os campos da tabela em formato CSV."/>
+			</mx:VBox>
+			<mx:VBox id="viewVoAS" width="100%" height="100%" label="VO: AS" toolTip="VO (Value Object) ActionScript da tabela selecionada.">
+				<s:TextArea id="textAreaVoAS" width="100%" height="100%" editable="false" horizontalScrollPolicy="auto" lineBreak="explicit"/>
+				<mx:HBox>
+					<s:Button id="buttonCopyVoAS" label="COPIAR" icon="@Embed(source='assets/editcopy-024.png')" click="buttonCopyVoAS_clickHandler(event)"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonOpenVoAS" label="ABRIR" icon="@Embed(source='assets/fileopen-024.png')" enabled="false" click="getFile('vo_as')"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonEditVoAS" label="EDIT" icon="@Embed(source='assets/edit-024.png')" enabled="false" click="getFile('vo_as', true)"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonSaveVoAS" label="SALVAR" icon="@Embed(source='assets/filesave-024.png')" enabled="{textInputVoAsPath.text.length != 0}" 
+							  click="buttonSaveVoAS_clickHandler()"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonSaveAsVoAS" label="SALVAR COMO..." icon="@Embed(source='assets/save_all-024.png')" 
+							  click="buttonSaveAsVoAS_clickHandler(event)"/>
+				</mx:HBox>
+			</mx:VBox>
+			<mx:VBox id="viewVoPHP" width="100%" height="100%" label="VO: PHP" toolTip="VO (Value Object) PHP da tabela selecionada.">
+				<s:TextArea id="textAreaVoPHP" width="100%" height="100%" editable="false" horizontalScrollPolicy="auto" lineBreak="explicit"/>
+				<mx:HBox>
+					<s:Button id="buttonCopyVoPHP" label="COPIAR" icon="@Embed(source='assets/editcopy-024.png')" click="buttonCopyVoPHP_clickHandler(event)"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonOpenVoPHP" label="ABRIR" icon="@Embed(source='assets/fileopen-024.png')" enabled="false" click="getFile('vo_php')"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonEditVoPHP" label="EDIT" icon="@Embed(source='assets/edit-024.png')" enabled="false" click="getFile('vo_php', true)"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonSaveVoPHP" label="SALVAR" icon="@Embed(source='assets/filesave-024.png')" enabled="{textInputVoPhpPath.text.length != 0}"
+							  click="buttonSaveVoPHP_clickHandler()"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonSaveAsVoPHP" label="SALVAR COMO..." icon="@Embed(source='assets/save_all-024.png')" click="buttonSaveAsVoPHP_clickHandler(event)"/>
+				</mx:HBox>
+			</mx:VBox>
+			<mx:VBox id="viewCRUDPHP" width="100%" height="100%" label="CRUD: PHP" toolTip="CRUD (Create, Replace, Update and Delete) em PHP da tabela selecionada.">
+				<s:TextArea id="textAreaCRUDPHP" width="100%" height="100%" editable="false" horizontalScrollPolicy="auto" lineBreak="explicit"/>
+				<mx:HBox>
+					<s:Button id="buttonCopyCRUDPHP" label="COPIAR" icon="@Embed(source='assets/editcopy-024.png')" click="buttonCopyCRUDPHP_clickHandler(event)"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonOpenCRUDPHP" label="ABRIR" icon="@Embed(source='assets/fileopen-024.png')" enabled="false" click="getFile('crud_php')"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonEditCRUDPHP" label="EDIT" icon="@Embed(source='assets/edit-024.png')" enabled="false" click="getFile('crud_php', true)"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonSaveCRUDPHP" label="SALVAR" icon="@Embed(source='assets/filesave-024.png')" enabled="{textInputCrudPath.text.length != 0}"
+							  click="buttonSaveCRUDPHP_clickHandler()"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonSaveAsCRUDPHP" label="SALVAR COMO..." icon="@Embed(source='assets/save_all-024.png')" click="buttonSaveAsCRUDPHP_clickHandler(event)"/>
+				</mx:HBox>
+			</mx:VBox>
+			<mx:VBox id="viewCRUDITEMPHP" width="100%" height="100%" label="CRUD: PHP(ITEM)" toolTip="CRUD (Create, Replace, Update and Delete) em PHP para itens da tabela selecionada.">
+				<s:TextArea id="textAreaCRUDITEMPHP" width="100%" height="100%" editable="false" horizontalScrollPolicy="auto" lineBreak="explicit"/>
+				<mx:HBox>
+					<s:Button id="buttonCopyCRUDITEMPHP" label="COPIAR" icon="@Embed(source='assets/editcopy-024.png')" click="buttonCopyCRUDITEMPHP_clickHandler(event)"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonOpenCRUDITEMPHP" label="ABRIR" icon="@Embed(source='assets/fileopen-024.png')" enabled="false" click="getFile('cruditem_php')"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonEditCRUDITEMPHP" label="EDIT" icon="@Embed(source='assets/edit-024.png')" enabled="false" click="getFile('cruditem_php', true)"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonSaveCRUDITEMPHP" label="SALVAR" icon="@Embed(source='assets/filesave-024.png')" enabled="{textInputCrudPath.text.length != 0}"
+							  click="buttonSaveCRUDITEMPHP_clickHandler()"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonSaveAsCRUDITEMPHP" label="SALVAR COMO..." icon="@Embed(source='assets/save_all-024.png')" click="buttonSaveAsCRUDITEMPHP_clickHandler(event)"/>
+				</mx:HBox>
+			</mx:VBox>
+			<mx:VBox id="viewCRUDPGPHP" width="100%" height="100%" label="CRUD: PHP(PG)" toolTip="CRUD (Create, Replace, Update and Delete) em PHP com paginação da tabela selecionada.">
+				<s:TextArea id="textAreaCRUDPGPHP" width="100%" height="100%" editable="false" horizontalScrollPolicy="auto" lineBreak="explicit"/>
+				<mx:HBox>
+					<s:Button id="buttonCopyCRUDPGPHP" label="COPIAR" icon="@Embed(source='assets/editcopy-024.png')" click="buttonCopyCRUDPGPHP_clickHandler(event)"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonOpenCRUDPGPHP" label="ABRIR" icon="@Embed(source='assets/fileopen-024.png')" enabled="false" click="getFile('crudpg_php')"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonEditCRUDPGPHP" label="EDIT" icon="@Embed(source='assets/edit-024.png')" enabled="false" click="getFile('crudpg_php', true)"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonSaveCRUDPGPHP" label="SALVAR" icon="@Embed(source='assets/filesave-024.png')" enabled="{textInputCrudPath.text.length != 0}" 
+							  click="buttonSaveCRUDPGPHP_clickHandler()"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonSaveAsCRUDPGPHP" label="SALVAR COMO..." icon="@Embed(source='assets/save_all-024.png')" click="buttonSaveAsCRUDPGPHP_clickHandler(event)"/>
+				</mx:HBox>
+			</mx:VBox>
+			<mx:VBox id="viewTipsAS" width="100%" height="100%" label="TIPS: AS" enabled="{checkBoxComentarios.selected}" toolTip="Arquivo de legenda dos campos da tabela selecionada.">
+				<s:TextArea id="textAreaTipsAS" width="100%" height="100%" editable="false" horizontalScrollPolicy="auto" lineBreak="explicit"/>
+				<mx:HBox>
+					<s:Button id="buttonCopyTipsAS" label="COPIAR" icon="@Embed(source='assets/editcopy-024.png')" click="buttonCopyTipsAS_clickHandler(event)"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonOpenTipsAS" label="ABRIR" icon="@Embed(source='assets/fileopen-024.png')" enabled="false" click="getFile('tips_as')"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonEditTipsAs" label="EDIT" icon="@Embed(source='assets/edit-024.png')" enabled="false" click="getFile('tips_as', true)"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonSaveTipsAS" label="SALVAR" icon="@Embed(source='assets/filesave-024.png')" enabled="{textInputTipsPath.text.length != 0}"
+							  click="buttonSaveTipsAS_clickHandler()"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonSaveAsTipsAS" label="SALVAR COMO..." icon="@Embed(source='assets/save_all-024.png')" click="buttonSaveAsTipsAS_clickHandler(event)"/>
+				</mx:HBox>
+			</mx:VBox>
+			<mx:VBox id="viewAboutAS" width="100%" height="100%" label="ABOUT: AS" enabled="{checkBoxComentarios.selected}" toolTip="Arquivo de legenda da tabela selecionada.">
+				<s:TextArea id="textAreaAboutAS" width="100%" height="100%" editable="false" horizontalScrollPolicy="auto" lineBreak="explicit"/>
+				<mx:HBox>
+					<s:Button id="buttonCopyAboutAS" label="COPIAR" icon="@Embed(source='assets/editcopy-024.png')" click="buttonCopyAboutAS_clickHandler(event)"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonOpenAboutAS" label="ABRIR" icon="@Embed(source='assets/fileopen-024.png')" enabled="false" click="getFile('about_as')"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonEditAboutAs" label="EDIT" icon="@Embed(source='assets/edit-024.png')" enabled="false" click="getFile('about_as', true)"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonSaveAboutAS" label="SALVAR" icon="@Embed(source='assets/filesave-024.png')" enabled="{textInputAboutPath.text.length != 0}"
+							  click="buttonSaveAboutAS_clickHandler()"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonSaveAsAboutAS" label="SALVAR COMO..." icon="@Embed(source='assets/save_all-024.png')" click="buttonSaveAsAboutAS_clickHandler(event)"/>
+				</mx:HBox>
+			</mx:VBox>
+			<mx:VBox id="viewMXMLFlex" width="100%" height="100%" label="COMPONENTE: FLEX" toolTip="Componente em MXML da tabela selecionada.">
+				<s:TextArea id="textAreaMXMLFlex" width="100%" height="100%" editable="false" horizontalScrollPolicy="auto" lineBreak="explicit"/>
+				<mx:HBox>
+					<s:Button id="buttonCopyMXMLFlex" label="COPIAR" icon="@Embed(source='assets/editcopy-024.png')" click="buttonCopyMXMLFlex_clickHandler(event)"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonOpenMXMLFlex" label="ABRIR" icon="@Embed(source='assets/fileopen-024.png')" enabled="false" click="getFile('mxml_flex')"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonEditMXMLFlex" label="EDIT" icon="@Embed(source='assets/edit-024.png')" enabled="false" click="getFile('mxml_flex', true)"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonSaveMXMLFlex" label="SALVAR" icon="@Embed(source='assets/filesave-024.png')" enabled="{textInputFlexPath.text.length != 0}" 
+							  click="buttonSaveMXMLFlex_clickHandler()"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonSaveAsMXMLFlex" label="SALVAR COMO..." icon="@Embed(source='assets/save_all-024.png')" click="buttonSaveAsMXMLFlex_clickHandler(event)"/>
+				</mx:HBox>
+			</mx:VBox>
+			<mx:VBox id="viewRemoteFlex" width="100%" height="100%" label="REMOTE: FLEX" toolTip="Remote Object em MXML da tabela selecionada.">
+				<s:TextArea id="textAreaRemoteFlex" width="100%" height="100%" editable="false" horizontalScrollPolicy="auto" lineBreak="explicit"/>
+				<mx:HBox>
+					<s:Button id="buttonCopyRemoteFlex" label="COPIAR" icon="@Embed(source='assets/editcopy-024.png')" click="buttonCopyRemoteFlex_clickHandler(event)"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonSaveRemoteFlex" label="SALVAR COMO..." icon="@Embed(source='assets/save_all-024.png')" click="buttonSaveRemoteFlex_clickHandler(event)"/>
+				</mx:HBox>
+			</mx:VBox>
+			<mx:VBox id="viewFormFlex" width="100%" height="100%" label="FORM: FLEX" toolTip="Formulário em MXML da tabela selecionada.">
+				<s:TextArea id="textAreaFormFlex" width="100%" height="100%" editable="false" horizontalScrollPolicy="auto" lineBreak="explicit"/>
+				<mx:HBox>
+					<s:Button id="buttonCopyFormFlex" label="COPIAR" icon="@Embed(source='assets/editcopy-024.png')" click="buttonCopyFormFlex_clickHandler(event)"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonSaveFormFlex" label="SALVAR COMO..." icon="@Embed(source='assets/save_all-024.png')" click="buttonSaveFormFlex_clickHandler(event)"/>
+				</mx:HBox>
+			</mx:VBox>
+			<mx:VBox id="viewDataGridFlex" width="100%" height="100%" label="DG: FLEX" toolTip="Datagrid em MXML da tabela selecionada.">
+				<s:TextArea id="textAreaDataGridFlex" width="100%" height="100%" editable="false" horizontalScrollPolicy="auto" lineBreak="explicit"/>
+				<mx:HBox>
+					<s:Button id="buttonCopyDataGridFlex" label="COPIAR" icon="@Embed(source='assets/editcopy-024.png')" click="buttonCopyDataGridFlex_clickHandler(event)"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonSaveDataGridFlex" label="SALVAR COMO..." icon="@Embed(source='assets/save_all-024.png')" click="buttonSaveDataGridFlex_clickHandler(event)"/>
+				</mx:HBox>
+			</mx:VBox>
+			<mx:VBox id="viewValidatorsFlex" width="100%" height="100%" label="VLD: FLEX" toolTip="Validators em MXML da tabela selecionada.">
+				<s:TextArea id="textAreaValidatorsFlex" width="100%" height="100%" editable="false" horizontalScrollPolicy="auto" lineBreak="explicit"/>
+				<mx:HBox>
+					<s:Button id="buttonCopyValidatorsFlex" label="COPIAR" icon="@Embed(source='assets/editcopy-024.png')" click="buttonCopyValidatorsFlex_clickHandler(event)"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonSaveValidatorsFlex" label="SALVAR COMO..." icon="@Embed(source='assets/save_all-024.png')" click="buttonSaveValidatorsFlex_clickHandler(event)"/>
+				</mx:HBox>
+			</mx:VBox>
+			<mx:VBox id="viewFilterFlex" width="100%" height="100%" label="FLT: FLEX" toolTip="Filtro em MXML da tabela selecionada.">
+				<s:TextArea id="textAreaFilterFlex" width="100%" height="100%" editable="false" horizontalScrollPolicy="auto" lineBreak="explicit"/>
+				<mx:HBox>
+					<s:Button id="buttonCopyFilterFlex" label="COPIAR" icon="@Embed(source='assets/editcopy-024.png')" click="buttonCopyFilterFlex_clickHandler(event)"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonSaveFilterFlex" label="SALVAR COMO..." icon="@Embed(source='assets/save_all-024.png')" click="buttonSaveFilterFlex_clickHandler(event)"/>
+				</mx:HBox>
+			</mx:VBox>
+			<mx:VBox id="viewExportFlex" width="100%" height="100%" label="EXP: FLEX" toolTip="Componente de exportação em MXML da tabela selecionada.">
+				<s:TextArea id="textAreaExportFlex" width="100%" height="100%" editable="false" horizontalScrollPolicy="auto" lineBreak="explicit"/>
+				<mx:HBox>
+					<s:Button id="buttonCopyExportFlex" label="COPIAR" icon="@Embed(source='assets/editcopy-024.png')" click="buttonCopyExportFlex_clickHandler(event)"/>
+					<mx:Spacer width="20" height="20"/>
+					<mx:VRule height="20"/>
+					<mx:Spacer width="20" height="20"/>
+					<s:Button id="buttonSaveExportFlex" label="SALVAR COMO..." icon="@Embed(source='assets/save_all-024.png')" click="buttonSaveExportFlex_clickHandler(event)"/>
+				</mx:HBox>
+			</mx:VBox>
+		</mx:ViewStack>
+        <mx:HRule width="100%"/>
+        <s:Label text="Esta versão é uma demonstração e algumas funcionalidades estão limitadas." color="red"/>
+	</mx:VBox>
+</s:Application>

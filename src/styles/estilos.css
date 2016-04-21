@@ -1,0 +1,123 @@
+/* CSS file */
+@namespace s "library://ns.adobe.com/flex/spark";
+@namespace mx "library://ns.adobe.com/flex/mx";
+mx|ToolTip
+{
+	backgroundColor: #FFFFFF;
+	font-family: Verdana;
+	fontSize: 14;
+	fontWeight: bold;
+	color: #000000;
+}
+mx|Form
+{
+    skinClass: ClassReference("flatspark.skins.PanelSkin");
+	backgroundColor: #FFFFFF;
+	chromeColor: #CDCDCD;
+	font-family: Verdana;
+	fontSize: 14;
+	fontWeight: bold;
+	focus-color: #000000;
+}
+mx|Button
+{
+    skinClass: ClassReference("flatspark.skins.ButtonSkin");
+	backgroundColor: #FFFFFF;
+	chromeColor: #CDCDCD;
+	font-family: Verdana;
+	fontSize: 14;
+	fontWeight: bold;
+}
+s|Button
+ {
+     skinClass: ClassReference("flatspark.skins.ButtonSkin");
+     backgroundColor: #FFFFFF;
+     chromeColor: #CDCDCD;
+     font-family: Verdana;
+     fontSize: 14;
+     fontWeight: bold;
+ }
+s|List
+{
+	alternatingItemColors: #EEEEEE, white;
+	backgroundColor: #FFFFFF;
+	selectionColor: #CDCDCD;
+	rollOverColor: #CDCDCD;
+	chromeColor: #CDCDCD;
+	font-family: Verdana;
+	fontSize: 14;
+	fontWeight: bold;
+}
+s|Panel
+{
+    skinClass: ClassReference("flatspark.skins.PanelSkin");
+	backgroundColor: #FFFFFF;
+	chromeColor: #CDCDCD;
+	font-family: Verdana;
+	fontSize: 14;
+	fontWeight: bold;
+}
+mx|Panel
+{
+    skinClass: ClassReference("flatspark.skins.PanelSkin");
+	backgroundColor: #FFFFFF;
+	chromeColor: #CDCDCD;
+	font-family: Verdana;
+	fontSize: 14;
+	fontWeight: bold;
+}
+mx|Alert
+{
+    skinClass: ClassReference("flatspark.skins.AlertSkin");
+	backgroundColor: #FFFFFF;
+	chromeColor: #CDCDCD;
+	font-family: Verdana;
+	fontSize: 14;
+	fontWeight: bold;
+	font-style: italic;
+}
+mx|DataGrid
+{
+	alternatingItemColors: #EEEEEE, white;
+	font-family: Verdana;
+	fontSize: 14;
+	fontWeight: bold;
+	chrome-color: #CDCDCD;
+	rollOverColor: #CDCDCD;
+	selectionColor: #CDCDCD;
+}
+mx|TextInput
+{
+    skinClass: ClassReference("flatspark.skins.TextInputSkin");
+	font-family: Verdana;
+	fontSize: 14;
+	fontWeight: bold;
+	focus-color: #000000;
+}
+s|TextInput
+{
+    skinClass: ClassReference("flatspark.skins.TextInputSkin");
+	font-family: Verdana;
+	fontSize: 14;
+	fontWeight: bold;
+	focus-color: #000000;
+}
+s|Label
+{
+	font-family: Verdana;
+	fontSize: 14;
+	fontWeight: bold;
+	focus-color: #000000;
+}
+mx|HBox
+{
+	verticalAlign: middle;
+}
+s|CheckBox
+{
+    skinClass: ClassReference("flatspark.skins.CheckBoxSkin");
+}
+s|DropDownList
+{
+    skinClass: ClassReference("flatspark.skins.DropDownListSkin");
+}

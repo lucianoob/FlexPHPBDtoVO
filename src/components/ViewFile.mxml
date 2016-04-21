@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   width="800" height="600"
+			   title="Arquivo: {arquivo}"
+			   close="titlewindow_closeHandler()"
+               skinClass="flatspark.skins.TitleWindowSkin">
+	<fx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			[Bindable]
+			public var arquivo:String = "";
+			[Bindable]
+			public var conteudo:String = "";
+			[Bindable]
+			public var lastmod:String = "";
+			[Bindable]
+			public var isEdit:Boolean = false;
+			
+			protected function titlewindow_closeHandler():void
+			{
+				PopUpManager.removePopUp(this);
+			}
+			
+			protected function buttonSalvar_clickHandler(event:MouseEvent):void
+			{
+				Alert.show("Você confirma a edição do arquivo ?", "CONFIRMAÇÃO", Alert.NO|Alert.YES, null ,closeHandlerSalvar, null, Alert.NO);
+			}
+			private function closeHandlerSalvar(event:CloseEvent):void
+			{
+				if(event.detail == Alert.YES)	
+					remote.salvarArquivo(arquivo, conteudo);
+			}
+			private function salvarArquivo_resultHandler(event:ResultEvent):void
+			{
+				Alert.show("O arquivo foi gravado com sucesso !!!", "AVISO");
+				titlewindow_closeHandler();
+			}
+			protected function remote_faultHandler(event:FaultEvent):void
+			{
+				Alert.show("Code("+event.fault.errorID.toString(10)+"): "+event.fault.faultString + "\nDetalhes:"+ event.fault.faultDetail, "ERRO("+event.fault.faultCode+")");
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<s:RemoteObject endpoint="http://localhost/FlexPHPBDtoVO/gateway.php" 
+						id="remote" 
+						source="PHPBDService" 
+						destination="PHPBDService"
+						showBusyCursor="true"
+						fault="remote_faultHandler(event)">
+			<s:method name="salvarArquivo" result="salvarArquivo_resultHandler(event)"/>
+		</s:RemoteObject>
+		
+	</fx:Declarations>
+	<mx:VBox width="100%" height="100%" paddingBottom="10" paddingLeft="10" paddingRight="10" paddingTop="10">
+		<mx:TextArea width="100%" height="100%" editable="{isEdit}" text="@{conteudo}"
+					wordWrap="false"/>
+		<mx:HBox width="100%">
+			<s:Label width="100%" text="Última Modificação: {lastmod}"/>
+			<s:Spacer width="100%"/>
+			<s:Button id="buttonSalvar" label="Salvar" visible="{isEdit}" click="buttonSalvar_clickHandler(event)"/>
+		</mx:HBox>
+	</mx:VBox>
+</s:TitleWindow>
