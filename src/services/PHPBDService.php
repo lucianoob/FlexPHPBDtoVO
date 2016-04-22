@@ -1,7 +1,7 @@
 <?php
 date_default_timezone_set('America/Sao_Paulo');
 
-class PHPBDService 
+class PHPBDService
 {
 	var $username;
 	var $password;
@@ -11,10 +11,10 @@ class PHPBDService
 	var $tablename;
 	var $conexao;
 	var $query;
-	
-	function PHPBDService() 
+
+	function PHPBDService()
 	{
-		
+
 	}
 	public function openConexao($usuario,$senha,$servidor,$porta)
 	{
@@ -22,21 +22,21 @@ class PHPBDService
 		$this->password = $senha;
 		$this->server = $servidor;
 		$this->port = $porta;
-		$this->conexao = mysql_connect($this->server . ":" . $this->port, $this->username, $this->password);
-		if (!$this->conexao) 
+		$this->conexao = new mysqli($this->server, $this->username, $this->password);
+		if ($this->conexao->connect_error)
 		{
-			die('Não foi poss�vel realizar a conexão com o servidor: ' . mysql_error());
-		}	
+			die('Não foi possível realizar a conexão com o servidor: ' . $this->conexao->connect_error);
+		}
 		return true;
 	}
 	public function listarBancoDados($usuario,$senha,$servidor,$porta)
 	{
 		$this->openConexao($usuario,$senha,$servidor,$porta);
 		$this->query = "show databases";
-		$result = mysql_query($this->query);
+		$result = $this->conexao->query($this->query);
 		$rows = array();
 		$i = 0;
-		while($row = mysql_fetch_object($result))
+		while($row = $result->fetch_assoc())
 		{
 			$rows[$i] = $row;
 			$i++;
@@ -48,15 +48,15 @@ class PHPBDService
 	{
 		$this->openConexao($usuario,$senha,$servidor,$porta);
 		$this->databasename = $bancoDados;
-		if (!mysql_select_db($this->databasename, $this->conexao)) 
+		if (!$this->conexao->select_db($this->databasename))
 		{
 			die ('Não foi possível conectar com o banco de dados: ' . mysql_error());
 		}
 		$this->query = "show tables";
-		$result = mysql_query($this->query);
+		$result = $this->conexao->query($this->query);
 		$rows = array();
 		$i = 0;
-		while($row = mysql_fetch_object($result))
+		while($row = $result->fetch_assoc())
 		{
 			$rows[$i] = $row;
 			$i++;
@@ -69,15 +69,15 @@ class PHPBDService
 		$this->openConexao($usuario,$senha,$servidor,$porta);
 		$this->databasename = $bancoDados;
 		$this->tablename = $tabela;
-		if (!mysql_select_db($this->databasename, $this->conexao)) 
+		if (!$this->conexao->select_db($this->databasename))
 		{
 			die ('Não foi possível conectar com o banco de dados: ' . mysql_error());
 		}
 		$this->query = "SHOW FULL COLUMNS FROM ".$this->tablename;
-		$result = mysql_query($this->query);
+		$result = $this->conexao->query($this->query);
 		$rows = array();
 		$i = 0;
-		while($row = mysql_fetch_object($result))
+		while($row = $result->fetch_assoc())
 		{
 			$rows[$i] = $row;
 			$i++;
@@ -90,13 +90,13 @@ class PHPBDService
 		$this->openConexao($usuario,$senha,$servidor,$porta);
 		$this->databasename = $bancoDados;
 		$this->tablename = $tabela;
-		if (!mysql_select_db($this->databasename, $this->conexao)) 
+		if (!$this->conexao->select_db($this->databasename))
 		{
 			die ('Não foi possível conectar com o banco de dados: ' . mysql_error());
 		}
 		$this->query = "SHOW TABLE STATUS LIKE '".$this->tablename."'";
-		$result = mysql_query($this->query);
-		$row = mysql_fetch_object($result);
+		$result = $this->conexao->query($this->query);
+		$row = $result->fetch_assoc();
 		$this->closeConexao();
 		return $row;
 	}
@@ -106,13 +106,13 @@ class PHPBDService
 	}
 	public function salvarArquivo($arquivo, $conteudo)
 	{
-		$file_open = fopen('./'.$arquivo,'w'); 
-	    if(!$file_open)
-	    { 
-	    	return false;
-	    } 
-	    fwrite($file_open, $conteudo); 
-	    fclose($file_open); 
+		$file_open = fopen('./'.$arquivo,'w');
+		if(!$file_open)
+		{
+			return false;
+		}
+		fwrite($file_open, $conteudo);
+		fclose($file_open);
 		return $arquivo;
 	}
 	public function conteudoArquivo($arquivo)
@@ -120,8 +120,8 @@ class PHPBDService
 		$array = array();
 		$conteudo = file_get_contents('./'.$arquivo);
 		$array[0] = $conteudo;
-		$array[1] = $arquivo; 
-		$array[2] = date ("d/m/Y H:i:s.", filemtime('./'.$arquivo)); 
+		$array[1] = $arquivo;
+		$array[2] = date ("d/m/Y H:i:s.", filemtime('./'.$arquivo));
 		return $array;
 	}
 	public function metodosArquivo($arquivo)
@@ -138,7 +138,7 @@ class PHPBDService
 	}
 	public function closeConexao()
 	{
-		if(!mysql_close($this->conexao))
+		if(!$this->conexao->close())
 		{
 			die ('Não foi possível fechar a conexão com o banco de dados: ' . mysql_error());
 		}

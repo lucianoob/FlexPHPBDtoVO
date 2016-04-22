@@ -34,7 +34,7 @@
         [Bindable]
         public var titulo:String = "FlexPHPDBtoVO";
         [Bindable]
-        public var versao:String = "v10.38";
+        public var versao:String = "v11.23";
         [Bindable]
         public var descricao:String = "Gerador de scripts para sistemas em Apache Flex da iAutomate.";
         [Bindable]
@@ -1378,9 +1378,10 @@
         }
 
         protected function buttonImportar_clickHandler(event:MouseEvent):void {
-            fo.browse([myFilter]);
+			Alert.show("Esta função está desabilitada", "AVISO");
+            /*fo.browse([myFilter]);
             fo.addEventListener(Event.SELECT, onFileSelect);
-            fo.addEventListener(Event.COMPLETE, onFileComplete);
+            fo.addEventListener(Event.COMPLETE, onFileComplete);*/
         }
 
         private function onFileSelect(event:Event):void {
@@ -1840,7 +1841,7 @@
 					</mx:FormItem>
 					<mx:FormItem label="Senha do Banco de Dados:">
 						<mx:HBox>
-							<s:TextInput id="textInputSenha" width="250" text="DHTBy5F#H&amp;b9sP6=" editable="false" displayAsPassword="true"/>
+							<s:TextInput id="textInputSenha" width="250" text="OWGofw3tqKvnSFFN" editable="false" displayAsPassword="true"/>
 							<components:ButtonInfo toolTip="Senha do servidor MySQL. Ex.: root (Clique para inserir o exemplo)." 
 												   click="{textInputSenha.text = 'root'}"
 												   enabled="{textInputSenha.enabled}"/>

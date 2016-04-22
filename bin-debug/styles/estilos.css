@@ -11,7 +11,6 @@ mx|ToolTip
 }
 mx|Form
 {
-    skinClass: ClassReference("flatspark.skins.PanelSkin");
 	backgroundColor: #FFFFFF;
 	chromeColor: #CDCDCD;
 	font-family: Verdana;
@@ -21,7 +20,6 @@ mx|Form
 }
 mx|Button
 {
-    skinClass: ClassReference("flatspark.skins.ButtonSkin");
 	backgroundColor: #FFFFFF;
 	chromeColor: #CDCDCD;
 	font-family: Verdana;
@@ -30,7 +28,6 @@ mx|Button
 }
 s|Button
  {
-     skinClass: ClassReference("flatspark.skins.ButtonSkin");
      backgroundColor: #FFFFFF;
      chromeColor: #CDCDCD;
      font-family: Verdana;
@@ -50,7 +47,6 @@ s|List
 }
 s|Panel
 {
-    skinClass: ClassReference("flatspark.skins.PanelSkin");
 	backgroundColor: #FFFFFF;
 	chromeColor: #CDCDCD;
 	font-family: Verdana;
@@ -59,7 +55,6 @@ s|Panel
 }
 mx|Panel
 {
-    skinClass: ClassReference("flatspark.skins.PanelSkin");
 	backgroundColor: #FFFFFF;
 	chromeColor: #CDCDCD;
 	font-family: Verdana;
@@ -68,7 +63,6 @@ mx|Panel
 }
 mx|Alert
 {
-    skinClass: ClassReference("flatspark.skins.AlertSkin");
 	backgroundColor: #FFFFFF;
 	chromeColor: #CDCDCD;
 	font-family: Verdana;
@@ -88,7 +82,6 @@ mx|DataGrid
 }
 mx|TextInput
 {
-    skinClass: ClassReference("flatspark.skins.TextInputSkin");
 	font-family: Verdana;
 	fontSize: 14;
 	fontWeight: bold;
@@ -96,7 +89,6 @@ mx|TextInput
 }
 s|TextInput
 {
-    skinClass: ClassReference("flatspark.skins.TextInputSkin");
 	font-family: Verdana;
 	fontSize: 14;
 	fontWeight: bold;
@@ -115,9 +107,7 @@ mx|HBox
 }
 s|CheckBox
 {
-    skinClass: ClassReference("flatspark.skins.CheckBoxSkin");
 }
 s|DropDownList
 {
-    skinClass: ClassReference("flatspark.skins.DropDownListSkin");
 }

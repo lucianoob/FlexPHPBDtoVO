@@ -2,11 +2,10 @@
 <s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
                xmlns:s="library://ns.adobe.com/flex/spark"
                xmlns:mx="library://ns.adobe.com/flex/mx"
-               width="600" height="250"
+               width="650" height="250"
                title="Sobre" textAlign="center"
                creationComplete="titlewindow1_creationCompleteHandler(event)"
                close="titleWindow_close(event)"
-               skinClass="flatspark.skins.TitleWindowSkin"
         >
 
     <fx:Script>
@@ -33,12 +32,12 @@
             swf.SWFByteCodeReader(this.loaderInfo);
             var d:Date = swf.readCompilationDate();
 
-            empresaText.htmlText += titulo + " " + versao + "<br>";
-            empresaText.htmlText += "Aplicação: " + descricao + "<br>";
-            empresaText.htmlText += "Criado: 10/02/2010 - Atualizado: "+d.getDate()+"/"+(d.getMonth()+1)+"/"+d.getFullYear()+"<br>";
+            empresaText.htmlText += titulo + " " + versao + "<br><br>";
+            empresaText.htmlText += "Aplicação: " + descricao + "<br><br>";
+            empresaText.htmlText += "Criado: 10/02/2010 - Atualizado: "+d.getDate()+"/"+(d.getMonth()+1)+"/"+d.getFullYear()+"<br><br>";
             empresaText.htmlText += "Desenvolvedores:<br>";
-            empresaText.htmlText += "Luciano Oliveira Borges (<font color='#0000ff'><a href='mailto:luciano@iautomate.com.br'>luciano@iautomate.com.br</a></font>)<br>";
-            empresaText.htmlText += "Fornecedor: iAutomate - Integração de Sistemas (<font color='#0000ff'><a href='http://www.iautomate.com.br'>www.iautomate.com.br</a></font>)<br>";
+            empresaText.htmlText += "Luciano Oliveira Borges (<font color='#0000ff'><a href='mailto:luciano@iautomate.com.br'>luciano@iautomate.com.br</a></font>)<br><br>";
+            empresaText.htmlText += "iAutomate - Integração de Sistemas (<font color='#0000ff'><a href='http://www.iautomate.com.br'>www.iautomate.com.br</a></font>)<br>";
         }
         ]]>
 	</fx:Script>
@@ -48,7 +47,7 @@
     <mx:VBox width="100%" height="100%" horizontalAlign="center"
              paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5">
         <mx:TextArea id="empresaText" styleName="empresaStyle"
-                     fontSize="18"
+                     fontSize="14"
                      fontWeight="bold"
                      width="100%"
                      height="100%"
